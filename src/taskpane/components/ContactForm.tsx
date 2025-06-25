@@ -7,7 +7,7 @@ import { extractSignatureBlock, parseSignature } from "./signature";
 import { getGraphToken } from "../authConfig";
 
 export function ContactForm() {
-  const [info, setInfo] = useState({ name: "", email: "", phone: "", organization: "" });
+  const [info, setInfo] = useState({ name: "", email: "", phone: "", organization: "", postcode: "" });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -97,6 +97,13 @@ export function ContactForm() {
       <label>
         Organisatie<br />
         <Input value={info.organization} onChange={updateField("organization")} />
+      </label>
+      <br />
+      <br />
+
+      <label>
+        Postcode<br />
+        <Input value={info.postcode} onChange={updateField("postcode")} />
       </label>
       <br />
       <br />

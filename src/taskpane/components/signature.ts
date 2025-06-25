@@ -43,6 +43,14 @@ export function parseSignature(
     ? matches.reduce((a,b) => a.length >= b.length ? a : b)
     : "";
 
-  return { name, email, phone, organization };
+  // Postcode (Dutch style e.g. 1234 AB)
+  const postcodeRegex = /\b\d{4}\s?[A-Za-z]{2}\b/;
+  let postcode = "";
+  for (const line of lines) {
+    const mPost = line.match(postcodeRegex);
+    if (mPost) { postcode = mPost[0]; break; }
+  }
+
+  return { name, email, phone, organization, postcode };
 }
 

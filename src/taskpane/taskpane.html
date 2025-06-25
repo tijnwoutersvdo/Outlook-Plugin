@@ -41,7 +41,7 @@
           'contactInfo',
           {
             type:       Office.MailboxEnums.ItemNotificationMessageType.InformationalMessage,
-            message:    `Naam: ${info.name || '-'} | E-mail: ${info.email || '-'} | Tel: ${info.phone || '-'} | Organisatie: ${info.organization || '-'}`,
+            message:    `Naam: ${info.name || '-'} | E-mail: ${info.email || '-'} | Tel: ${info.phone || '-'} | Organisatie: ${info.organization || '-'} | Postcode: ${info.postcode || '-'}`,
             icon:       'Icon.80x80',
             persistent: false
           },
@@ -54,7 +54,8 @@
                 givenName:      info.name,
                 emailAddresses: [{ address: info.email, name: info.name }],
                 businessPhones: [ info.phone ],
-                companyName:    info.organization
+                companyName:    info.organization,
+                homeAddress:   { postalCode: info.postcode }
               };
 
               const graphRes = await fetch(
@@ -142,8 +143,16 @@
         ? matches.reduce((a, b) => a.length >= b.length ? a : b)
         : "";
 
-      // 4) Organisatie (van tevoren berekend)
-      return { name, email, phone, organization };
+      // 4) Postcode (e.g. 1234 AB)
+      const postcodeRegex = /\b\d{4}\s?[A-Za-z]{2}\b/;
+      let postcode = "";
+      for (const line of lines) {
+        const mp = line.match(postcodeRegex);
+        if (mp) { postcode = mp[0]; break; }
+      }
+
+      // 5) Organisatie (van tevoren berekend)
+      return { name, email, phone, organization, postcode };
     }
   </script>
 </head>

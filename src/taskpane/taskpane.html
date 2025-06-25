@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en" data-framework="typescript">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Synergia Contact Extractor</title>
+
+  <!-- Office JavaScript API -->
+  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"
+          type="text/javascript"></script>
+  <script>
+    Office.onReady(() => {
+      Office.actions.associate("extractContact", extractContact);
+    });
+
+    async function extractContact(event) {
+      const item        = Office.context.mailbox.item;
+      const senderName  = item.from?.displayName  || "";
+      const senderEmail = item.from?.emailAddress || "";
+
+      // Organisatie = stukje tussen '@' en eerste '.', Title-case
+      const rawSeed = senderEmail.split('@')[1]?.split('.')[0] || "";
+      const organization = rawSeed
+        ? rawSeed.charAt(0).toUpperCase() + rawSeed.slice(1).toLowerCase()
+        : "";
+
+      // 1) body ophalen en parsen
+      item.body.getAsync(Office.CoercionType.Text, async result => {
+        if (result.status !== Office.AsyncResultStatus.Succeeded) {
+          console.error(result.error);
+          event.completed();
+          return;
+        }
+
+        const sig  = extractSignatureBlock(result.value, senderName);
+        const info = parseSignature(sig, senderName, senderEmail, organization);
+
+        // 2) banner met parsed waarden
+        item.notificationMessages.addAsync(
+          'contactInfo',
+          {
+            type:       Office.MailboxEnums.ItemNotificationMessageType.InformationalMessage,
+            message:    `Naam: ${info.name || '-'} | E-mail: ${info.email || '-'} | Tel: ${info.phone || '-'} | Organisatie: ${info.organization || '-'}`,
+            icon:       'Icon.80x80',
+            persistent: false
+          },
+          async () => {
+            // 3) Token ophalen en contact aanmaken via Graph
+            try {
+              const accessToken = await OfficeRuntime.auth.getAccessToken({ allowSignInPrompt: true });
+
+              const contactPayload = {
+                givenName:      info.name,
+                emailAddresses: [{ address: info.email, name: info.name }],
+                businessPhones: [ info.phone ],
+                companyName:    info.organization
+              };
+
+              const graphRes = await fetch(
+                "https://graph.microsoft.com/v1.0/me/contacts",
+                {
+                  method:  "POST",
+                  headers: {
+                    "Authorization": `Bearer ${accessToken}`,
+                    "Content-Type":  "application/json"
+                  },
+                  body: JSON.stringify(contactPayload)
+                }
+              );
+              if (!graphRes.ok) {
+                const text = await graphRes.text();
+                throw new Error(`${graphRes.status} ${text}`);
+              }
+
+              // 4) succes-banner
+              item.notificationMessages.addAsync(
+                'saveSuccess',
+                {
+                  type:       Office.MailboxEnums.ItemNotificationMessageType.InformationalMessage,
+                  message:    "✅ Contact opgeslagen!",
+                  icon:       'Icon.80x80',
+                  persistent: false
+                }
+              );
+            } catch (err) {
+              console.error(err);
+              // error-banner
+              item.notificationMessages.addAsync(
+                'saveError',
+                {
+                  type:       Office.MailboxEnums.ItemNotificationMessageType.ErrorMessage,
+                  message:    "❌ Opslaan mislukt: " + err.message,
+                  persistent: false
+                }
+              );
+            } finally {
+              event.completed();
+            }
+          }
+        );
+      });
+    }
+
+    function extractSignatureBlock(body, senderName) {
+      if (senderName) {
+        const idx = body.indexOf(senderName);
+        if (idx >= 0) return body.substring(idx).trim();
+      }
+      const parts = body.split(/\r?\n\s*\r?\n/);
+      return (parts.length > 1 ? parts.pop() : body).trim();
+    }
+
+    function parseSignature(sig, senderName, senderEmail, organization) {
+      const lines = sig.split(/\r?\n/).map(l => l.trim()).filter(l => l);
+
+      // 1) Naam 
+      let name = "";
+      if (senderName && sig.toLowerCase().includes(senderName.toLowerCase())) {
+        name = senderName;
+      } else {
+        for (const line of lines) {
+          if (line.includes(senderEmail))               continue;
+          if (/\+?\d[\d\-\u2013()\s]{5,}\d/.test(line)) continue;
+          if (/https?:\/\//i.test(line))               continue;
+          if (/www\./i.test(line))                     continue;
+          if (/^[\+\d]/.test(line))                    continue;
+          name = line;
+          break;
+        }
+      }
+
+      // 2) E-mail
+      const email = senderEmail;
+
+      // 3) Telefoon (langste match)
+      const phoneRegex = /(\+?\d[\d\-\u2013()\s]{5,}\d)/g;
+      const matches    = [];
+      let   m;
+      while (m = phoneRegex.exec(sig)) matches.push(m[1]);
+      const phone = matches.length
+        ? matches.reduce((a, b) => a.length >= b.length ? a : b)
+        : "";
+
+      // 4) Organisatie (van tevoren berekend)
+      return { name, email, phone, organization };
+    }
+  </script>
+</head>
+
+<body style="width:100%;height:100%;margin:0;padding:0;">
+  <div id="container"></div>
+
+  <!-- Fallback IE/EdgeHTML -->
+  <div id="tridentmessage" style="display:none;padding:10px;">
+    Deze add-in werkt niet in Edge Legacy of IE. Upgrade naar Office 2021 of M365.
+  </div>
+  <script>
+    if (navigator.userAgent.includes("Trident") ||
+        navigator.userAgent.includes("Edge")) {
+      document.getElementById("tridentmessage").style.display = "block";
+      document.getElementById("container").style.display       = "none";
+    }
+  </script>
+</body>
+</html>
+

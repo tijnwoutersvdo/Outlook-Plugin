@@ -39,6 +39,7 @@ export interface ContactInfo {
   email:        string;
   phone:        string;
   organization: string;
+  postcode:     string;
 }
 
 export async function createContact(token: string, info: ContactInfo): Promise<void> {
@@ -51,7 +52,8 @@ export async function createContact(token: string, info: ContactInfo): Promise<v
     givenName:       info.name,
     emailAddresses: [{ address: info.email, name: info.name }],
     businessPhones:  [ info.phone ],
-    companyName:     info.organization
+    companyName:     info.organization,
+    homeAddress:    { postalCode: info.postcode }
   };
 
   const res = await fetch("https://graph.microsoft.com/v1.0/me/contacts", {

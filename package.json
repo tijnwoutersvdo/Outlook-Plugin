@@ -36,7 +36,8 @@
     "string-similarity": "^4.0.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "regenerator-runtime": "^0.14.1"
+    "regenerator-runtime": "^0.14.1",
+    "string-similarity": "^4.0.4"
   },
   "devDependencies": {
     "@babel/core": "^7.24.0",
@@ -67,8 +68,8 @@
     "process": "^0.11.10",
     "source-map-loader": "^5.0.0",
     "ts-loader": "^9.5.1",
-    "typescript": "^5.4.2",
-    "webpack": "^5.95.0",
+    "typescript": "^5.8.3",
+    "webpack": "^5.99.9",
     "webpack-cli": "^5.1.4",
     "webpack-dev-server": "5.1.0"
   },

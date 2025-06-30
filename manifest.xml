@@ -17,6 +17,10 @@
   <HighResolutionIconUrl DefaultValue="https://bdf2-92-64-101-76.ngrok-free.app/assets/icon-128.png"/>
   <SupportUrl           DefaultValue="https://www.synergia.nl/help"/>
 
+  <AppDomains>
+    <AppDomain>https://res.cdn.office.net</AppDomain>
+  </AppDomains>
+
   <!-- Host & API-vereisten -->
   <Hosts><Host Name="Mailbox"/></Hosts>
   <Requirements>

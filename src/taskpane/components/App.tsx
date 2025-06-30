@@ -1,4 +1,7 @@
 // File: src/taskpane/components/App.tsx
+import { initializeIcons } from '@fluentui/font-icons-mdl2';
+
+initializeIcons('/assets/icons/fonts/');
 
 import * as React from "react";
 import { useEffect, useState } from "react";

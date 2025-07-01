@@ -5,8 +5,8 @@ const CopyWebpackPlugin = require("copy-webpack-plugin");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const webpack = require("webpack");
 
-const urlDev = "https://localhost:3000/";
-const urlProd = "https://www.contoso.com/"; // CHANGE THIS TO YOUR PRODUCTION DEPLOYMENT LOCATION
+const defaultBaseUrl = "https://9a08-92-64-101-76.ngrok-free.app";
+
 
 async function getHttpsOptions() {
   const httpsOptions = await devCerts.getHttpsServerOptions();
@@ -14,7 +14,8 @@ async function getHttpsOptions() {
 }
 
 module.exports = async (env, options) => {
-  const dev = options.mode === "development";
+  const buildBaseUrl = process.env.BASE_URL || defaultBaseUrl;
+  const buildBaseUrlHost = new URL(buildBaseUrl).host;
   const config = {
     devtool: "source-map",
     entry: {
@@ -76,11 +77,10 @@ module.exports = async (env, options) => {
             from: "manifest*.xml",
             to: "[name]" + "[ext]",
             transform(content) {
-              if (dev) {
-                return content;
-              } else {
-                return content.toString().replace(new RegExp(urlDev, "g"), urlProd);
-              }
+              return content
+                .toString()
+                .replace(/\{\{BASE_URL\}\}/g, buildBaseUrl)
+                .replace(/\{\{BASE_URL_HOST\}\}/g, buildBaseUrlHost);
             },
           },
         ],
@@ -89,6 +89,9 @@ module.exports = async (env, options) => {
         filename: "commands.html",
         template: "./src/commands/commands.html",
         chunks: ["polyfill", "commands"],
+      }),
+      new webpack.DefinePlugin({
+        BASE_URL: JSON.stringify(buildBaseUrl),
       }),
       new webpack.ProvidePlugin({
         Promise: ["es6-promise", "Promise"],

@@ -13,8 +13,8 @@
   <Description DefaultValue="Slaat bijlagen op SharePoint en extraheert contactgegevens."/>
 
   <!-- Icon & support -->
-  <IconUrl              DefaultValue="https://9a08-92-64-101-76.ngrok-free.app/assets/icon-64.png"/>
-  <HighResolutionIconUrl DefaultValue="https://9a08-92-64-101-76.ngrok-free.app/assets/icon-128.png"/>
+  <IconUrl              DefaultValue="{{BASE_URL}}/assets/icon-64.png"/>
+  <HighResolutionIconUrl DefaultValue="{{BASE_URL}}/assets/icon-128.png"/>
   <SupportUrl           DefaultValue="https://www.synergia.nl/help"/>
 
   <!-- Host & API-vereisten -->
@@ -27,7 +27,7 @@
   <FormSettings>
     <Form xsi:type="ItemRead">
       <DesktopSettings>
-        <SourceLocation DefaultValue="https://9a08-92-64-101-76.ngrok-free.app/taskpane.html"/>
+        <SourceLocation DefaultValue="{{BASE_URL}}/taskpane.html"/>
         <RequestedHeight>300</RequestedHeight>
       </DesktopSettings>
     </Form>
@@ -102,13 +102,13 @@
       <!-- 3) Resources -->
       <Resources>
         <bt:Images>
-          <bt:Image id="Icon16" DefaultValue="https://9a08-92-64-101-76.ngrok-free.app/assets/icon-16.png"/>
-          <bt:Image id="Icon32" DefaultValue="https://9a08-92-64-101-76.ngrok-free.app/assets/icon-32.png"/>
-          <bt:Image id="Icon80" DefaultValue="https://9a08-92-64-101-76.ngrok-free.app/assets/icon-80.png"/>
+          <bt:Image id="Icon16" DefaultValue="{{BASE_URL}}/assets/icon-16.png"/>
+          <bt:Image id="Icon32" DefaultValue="{{BASE_URL}}/assets/icon-32.png"/>
+          <bt:Image id="Icon80" DefaultValue="{{BASE_URL}}/assets/icon-80.png"/>
         </bt:Images>
         <bt:Urls>
-          <bt:Url id="Taskpane.Url"        DefaultValue="https://9a08-92-64-101-76.ngrok-free.app/taskpane.html"/>
-          <bt:Url id="Taskpane.UrlContact" DefaultValue="https://9a08-92-64-101-76.ngrok-free.app/taskpane.html?mode=contact"/>
+          <bt:Url id="Taskpane.Url"        DefaultValue="{{BASE_URL}}/taskpane.html"/>
+          <bt:Url id="Taskpane.UrlContact" DefaultValue="{{BASE_URL}}/taskpane.html?mode=contact"/>
         </bt:Urls>
         <bt:ShortStrings>
           <bt:String id="GroupLabel"          DefaultValue="Synergia File Saver"/>
@@ -124,7 +124,7 @@
       <!-- 4) SSO / Microsoft Graph -->
       <WebApplicationInfo>
         <Id>a4d1fb6c-f9df-4caf-a091-a2b93b078ddc</Id>
-        <Resource>api://9a08-92-64-101-76.ngrok-free.app/a4d1fb6c-f9df-4caf-a091-a2b93b078ddc</Resource>
+        <Resource>api://{{BASE_URL_HOST}}/a4d1fb6c-f9df-4caf-a091-a2b93b078ddc</Resource>
         <Scopes>
           <Scope>openid</Scope>
           <Scope>profile</Scope>

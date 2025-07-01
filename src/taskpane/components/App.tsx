@@ -213,13 +213,13 @@ const App: React.FC = () => {
   useEffect(() => {
     if (!treeRef.current.length) {
       setSuggestion(null);
-      return;
+      return undefined;
     }
 
     const first = attachments.find(a => selectedIds.includes(a.id));
     if (!first) {
       setSuggestion(null);
-      return;
+      return undefined;
     }
 
     const handle = setTimeout(() => {

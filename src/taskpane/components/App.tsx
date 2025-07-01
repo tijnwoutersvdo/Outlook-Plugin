@@ -230,7 +230,6 @@ const App: React.FC = () => {
           .toLowerCase()
           .split(/[^a-z0-9]+/)
           .filter(Boolean);
-        console.log("tokens", tokens);
 
         const prospects = treeRef.current.find(n => n.name === "Prospects");
         if (!prospects) {

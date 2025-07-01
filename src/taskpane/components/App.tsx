@@ -211,9 +211,15 @@ const App: React.FC = () => {
 
   // Suggest folder based on first selected attachment
   useEffect(() => {
-    if (!treeRef.current.length) { setSuggestion(null); return; }
+    if (!treeRef.current.length) {
+      setSuggestion(null);
+      return undefined;
+    }
     const first = attachments.find(a => selectedIds.includes(a.id));
-    if (!first) { setSuggestion(null); return; }
+    if (!first) {
+      setSuggestion(null);
+      return undefined;
+    }
     const handle = setTimeout(() => {
       const tokens = first.name.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
       let best: FolderNode | null = null;

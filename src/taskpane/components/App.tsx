@@ -223,54 +223,61 @@ const App: React.FC = () => {
     }
 
     const handle = setTimeout(() => {
-      const tokens = first.name.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
-      console.debug("tokens", tokens);
+      try {
+        const tokens = first.name
+          .toLowerCase()
+          .split(/[^a-z0-9]+/)
+          .filter(Boolean);
+        console.debug("tokens", tokens);
 
-      const prospects = treeRef.current.find(n => n.name === "Prospects");
-      if (!prospects) {
-        setSuggestion(null);
-        return;
-      }
-
-      const substrings: string[] = [];
-      for (let i = 0; i < tokens.length; i++) {
-        let part = tokens[i];
-        substrings.push(part);
-        for (let j = i + 1; j < tokens.length; j++) {
-          part += " " + tokens[j];
-          substrings.push(part);
+        const prospects = treeRef.current.find(n => n.name === "Prospects");
+        if (!prospects) {
+          setSuggestion(null);
+          return;
         }
-      }
 
-      let match: FolderNode | null = null;
-      let bestLen = 0;
-      let bestSub = "";
-
-      const search = (node: FolderNode) => {
-        const lname = node.path.toLowerCase();
-        for (const sub of substrings) {
-          if (lname.includes(sub) && sub.length > bestLen) {
-            bestLen = sub.length;
-            match = node;
-            bestSub = sub;
+        const substrings: string[] = [];
+        for (let i = 0; i < tokens.length; i++) {
+          let part = tokens[i];
+          substrings.push(part);
+          for (let j = i + 1; j < tokens.length; j++) {
+            part += " " + tokens[j];
+            substrings.push(part);
           }
         }
-        node.children.forEach(search);
-      };
 
-      search(prospects);
+        let match: FolderNode | null = null;
+        let bestLen = 0;
+        let bestSub = "";
 
-      if (match) {
-        console.debug("matched substring", bestSub);
-        setSuggestion(match);
-      } else {
-        console.debug("no match found, falling back to Prospects");
-        setSuggestion(prospects);
+        const search = (node: FolderNode) => {
+          const lname = node.pathNames.join("/").toLowerCase();
+          for (const sub of substrings) {
+            if (lname.includes(sub) && sub.length > bestLen) {
+              bestLen = sub.length;
+              match = node;
+              bestSub = sub;
+            }
+          }
+          node.children.forEach(search);
+        };
+
+        search(prospects);
+
+        if (match) {
+          console.debug("matched substring", bestSub);
+          setSuggestion(match);
+        } else {
+          console.debug("no match found, falling back to Prospects");
+          setSuggestion(prospects);
+        }
+      } catch (err) {
+        console.error(err);
       }
-    }, 200);
+    }, 20);
 
     return () => clearTimeout(handle);
-  }, [attachments, selectedIds]);
+  }, [attachments, selectedIds, driveId]);
 
   return (
     <div className={styles.root}>

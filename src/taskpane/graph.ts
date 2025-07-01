@@ -67,3 +67,39 @@ export async function createContact(token: string, info: ContactInfo): Promise<v
     throw new Error(`Contacts.Create faalde: ${res.status} ${text}`);
   }
 }
+
+export interface FolderNode {
+  id: string;
+  name: string;
+  children: FolderNode[];
+  pathIds: string[];
+  pathNames: string[];
+}
+
+/**
+ * Haalt de mappenboom (root + 2 niveaus) op en retourneert deze als array.
+ */
+export async function getDriveTree(token: string, driveId: string): Promise<FolderNode[]> {
+  const headers = { Authorization: `Bearer ${token}` };
+  const res = await fetch(
+    `https://graph.microsoft.com/v1.0/drives/${driveId}/root?$select=id,name&$expand=children($expand=children;$select=id,name,folder)`,
+    { headers }
+  );
+  if (!res.ok) throw new Error(`Tree root failed: ${res.status}`);
+  const data = await res.json();
+
+  const toNode = (item: any, ids: string[], names: string[]): FolderNode => ({
+    id: item.id,
+    name: item.name,
+    children: (item.children || [])
+      .filter((c: any) => c.folder)
+      .map((c: any) => toNode(c, [...ids, c.id], [...names, c.name])),
+    pathIds: ids,
+    pathNames: names,
+  });
+
+  const rootChildren = (data.children || []).filter((i: any) => i.folder);
+  return rootChildren.map((item: any) =>
+    toNode(item, ["root", item.id], ["Shared Documents", item.name])
+  );
+}

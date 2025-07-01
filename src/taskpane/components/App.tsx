@@ -1,10 +1,10 @@
 // File: src/taskpane/components/App.tsx
 
 import * as React from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { makeStyles } from "@fluentui/react-components";
 import { getGraphToken } from "../authConfig";
-import { getSiteAndDrive } from "../graph";
+import { getSiteAndDrive, getDriveTree, FolderNode } from "../graph";
 import { getAttachments, IAttachment } from "../taskpane";
 import { ContactForm } from "./ContactForm";
 
@@ -16,6 +16,8 @@ const useStyles = makeStyles({
   list:        { listStyleType: "none", padding: 0, margin: 0 },
   item:        { cursor: "pointer", padding: "4px 8px", borderRadius: "4px", marginBottom: "4px", backgroundColor: "#f3f2f1" },
   input:       { marginRight: "8px", padding: "4px 8px", fontSize: "1rem" },
+  suggestion:  { marginBottom: "8px", backgroundColor: "#e7f3ff", padding: "8px", borderRadius: "4px", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" },
+  dismiss:     { marginLeft: "8px", cursor: "pointer", fontWeight: "bold" },
   button:      { padding: "8px 16px", fontSize: "1rem", cursor: "pointer", marginTop: "8px" },
   error:       { color: "red", marginBottom: "16px" },
   success:     { color: "green", marginBottom: "16px" },
@@ -44,6 +46,8 @@ const App: React.FC = () => {
   const [attachments, setAttachments]         = useState<IAttachment[]>([]);
   const [selectedIds, setSelectedIds]         = useState<string[]>([]);
   const [newFolderName, setNewFolderName]     = useState<string>("");
+  const [suggestion, setSuggestion]           = useState<FolderNode | null>(null);
+  const treeRef = useRef<FolderNode[]>([]);
 
   // Load subfolders under a parent
   const loadSubfolders = async (token: string, drive: string, parentId: string) => {
@@ -59,6 +63,8 @@ const App: React.FC = () => {
     setFolders(subs);
   };
 
+  // Fetch complete folder tree (2 levels) and cache in treeRef
+
   // Sign in and initialize SharePoint context
   const signInAndLoad = async () => {
     setError(null);
@@ -69,6 +75,7 @@ const App: React.FC = () => {
       const ids = await getSiteAndDrive(token);
       setSiteId(ids.siteId);
       setDriveId(ids.driveId);
+      treeRef.current = await getDriveTree(token, ids.driveId);
       await loadSubfolders(token, ids.driveId, "root");
       setIsSignedIn(true);
     } catch (e: any) {
@@ -82,6 +89,18 @@ const App: React.FC = () => {
     setSelectedIds(prev =>
       prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
     );
+  };
+
+  const acceptSuggestion = (node: FolderNode) => {
+    const newPath = node.pathIds.map((id, idx) => ({
+      id,
+      name: node.pathNames[idx],
+    }));
+    setPath(newPath);
+    if (graphToken && driveId) {
+      loadSubfolders(graphToken, driveId, node.id);
+    }
+    setSuggestion(null);
   };
 
   // Upload selected attachments to SharePoint, optionally in new folder
@@ -190,6 +209,36 @@ const App: React.FC = () => {
     });
   }, []);
 
+  // Suggest folder based on first selected attachment
+  useEffect(() => {
+    if (!treeRef.current.length) {
+      setSuggestion(null);
+      return undefined;
+    }
+    const first = attachments.find(a => selectedIds.includes(a.id));
+    if (!first) {
+      setSuggestion(null);
+      return undefined;
+    }
+    const handle = setTimeout(() => {
+      const tokens = first.name.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+      let best: FolderNode | null = null;
+      let score = 0;
+      const check = (node: FolderNode) => {
+        const lname = node.name.toLowerCase();
+        let local = 0;
+        for (const t of tokens) {
+          if (lname.includes(t)) local = Math.max(local, t.length);
+        }
+        if (local > score) { score = local; best = node; }
+        node.children.forEach(check);
+      };
+      treeRef.current.forEach(check);
+      setSuggestion(best);
+    }, 200);
+    return () => clearTimeout(handle);
+  }, [attachments, selectedIds, graphToken]);
+
   return (
     <div className={styles.root}>
       {error && <div className={styles.error}>{error}</div>}
@@ -201,6 +250,22 @@ const App: React.FC = () => {
         </button>
       ) : (
         <>
+          {suggestion && (
+            <div className={styles.suggestion} onClick={() => acceptSuggestion(suggestion)}>
+              <span>
+                Save file here? <strong>{suggestion.pathNames.join(" / ")}</strong>
+              </span>
+              <span
+                className={styles.dismiss}
+                onClick={e => {
+                  e.stopPropagation();
+                  setSuggestion(null);
+                }}
+              >
+                ×
+              </span>
+            </div>
+          )}
           <div className={styles.breadcrumb}>
             {path.map((crumb, idx) => (
               <React.Fragment key={crumb.id}>

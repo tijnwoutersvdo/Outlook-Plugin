@@ -6,7 +6,7 @@
 
   <!-- ── Basis ─────────────────────────────────────────────────── -->
   <Id>9a952895-5132-4ba7-a989-b7dce20ea6f0</Id>
-  <Version>1.0.1.4</Version>
+  <Version>1.0.1.6</Version>  <!-- bumped so OWA picks up this change -->
   <ProviderName>Synergia TW</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
   <DisplayName DefaultValue="Synergia File Saver"/>
@@ -96,8 +96,9 @@
                       <bt:Image size="32" resid="Icon32"/>
                       <bt:Image size="80" resid="Icon80"/>
                     </Icon>
-                    <Action xsi:type="ExecuteFunction">
-                      <FunctionName>extractContact</FunctionName>
+                    <!-- ↓ Changed this back to ShowTaskpane: -->
+                    <Action xsi:type="ShowTaskpane">
+                      <SourceLocation resid="Taskpane.UrlContact"/>
                     </Action>
                   </Control>
 

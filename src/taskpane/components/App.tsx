@@ -209,7 +209,8 @@ const App: React.FC = () => {
     });
   }, []);
 
-  // Suggest folder based on first selected attachment
+  // Suggest folder based on first selected attachment.
+  // Runs again when the tree finishes loading so suggestions work immediately.
   useEffect(() => {
     if (!treeRef.current.length) {
       setSuggestion(null);

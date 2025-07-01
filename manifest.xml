@@ -4,35 +4,31 @@
            xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
            xsi:type="MailApp">
 
-  <!-- ── Basis ─────────────────────────────────────────────────── -->
+  <!-- ── Basics ─────────────────────────────────────────────── -->
   <Id>9a952895-5132-4ba7-a989-b7dce20ea6f0</Id>
-  <Version>1.0.0.27</Version> <!-- bumped -->
+  <Version>1.0.0.29</Version>            <!-- bump so Outlook reloads -->
   <ProviderName>Synergia TW</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
   <DisplayName DefaultValue="Synergia File Saver"/>
   <Description DefaultValue="Slaat bijlagen op SharePoint en extraheert contactgegevens."/>
 
-  <!-- Icon & support -->
+  <!-- Icons & support -->
   <IconUrl               DefaultValue="https://bdf2-92-64-101-76.ngrok-free.app/assets/icon-64.png"/>
   <HighResolutionIconUrl DefaultValue="https://bdf2-92-64-101-76.ngrok-free.app/assets/icon-128.png"/>
   <SupportUrl            DefaultValue="https://www.synergia.nl/help"/>
 
-  <!-- Allow all hosts from which the add-in may fetch *any* resource -->
+  <!-- Domains Outlook must allow for *any* resource -->
   <AppDomains>
-    <AppDomain>https://res.cdn.office.net</AppDomain>
-    <AppDomain>https://static2.sharepointonline.com</AppDomain> <!-- new -->
-    <AppDomain>https://fonts.gstatic.com</AppDomain>            <!-- new -->
+    <AppDomain>res.cdn.office.net</AppDomain>
+    <AppDomain>static2.sharepointonline.com</AppDomain>
+    <AppDomain>fonts.gstatic.com</AppDomain>
+    <AppDomain>assets.ngrok.com</AppDomain>   <!-- ← no https:// -->
+    <AppDomain>cdn.ngrok.com</AppDomain>      <!-- ← no https:// -->
   </AppDomains>
 
   <!-- Host & API-vereisten -->
-  <Hosts>
-    <Host Name="Mailbox"/>
-  </Hosts>
-  <Requirements>
-    <Sets>
-      <Set Name="Mailbox" MinVersion="1.3"/>
-    </Sets>
-  </Requirements>
+  <Hosts><Host Name="Mailbox"/></Hosts>
+  <Requirements><Sets><Set Name="Mailbox" MinVersion="1.3"/></Sets></Requirements>
 
   <!-- Fallback voor oude clients -->
   <FormSettings>
@@ -150,5 +146,6 @@
     </VersionOverrides>
   </VersionOverrides>
 </OfficeApp>
+
 
 

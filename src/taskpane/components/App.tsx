@@ -47,7 +47,9 @@ const App: React.FC = () => {
   const [selectedIds, setSelectedIds]         = useState<string[]>([]);
   const [newFolderName, setNewFolderName]     = useState<string>("");
   const [suggestion, setSuggestion]           = useState<FolderNode | null>(null);
+  const [treeLoaded, setTreeLoaded] = useState(false);
   const treeRef = useRef<FolderNode[]>([]);
+  
 
   // Load subfolders under a parent
   const loadSubfolders = async (token: string, drive: string, parentId: string) => {
@@ -76,6 +78,8 @@ const App: React.FC = () => {
       setSiteId(ids.siteId);
       setDriveId(ids.driveId);
       treeRef.current = await getDriveTree(token, ids.driveId);
+      console.log("Drive tree fetched, nodes:", treeRef.current.length);
+      setTreeLoaded(true);
       await loadSubfolders(token, ids.driveId, "root");
       setIsSignedIn(true);
     } catch (e: any) {
@@ -209,76 +213,79 @@ const App: React.FC = () => {
     });
   }, []);
 
-  // Suggest folder based on first selected attachment.
-  // Runs again when the tree finishes loading so suggestions work immediately.
-  useEffect(() => {
-    if (!treeRef.current.length) {
-      setSuggestion(null);
-      return undefined;
+ // Suggestion effect
+useEffect(() => {
+  console.log("🏷️  Suggestion effect 🔄", {
+    attachments: attachments.length,
+    selected:    selectedIds.length,
+    driveId,
+    treeLoaded,
+    treeSize:    treeRef.current.length
+  });
+
+  if (!treeLoaded) {
+    console.log("❌ Tree not loaded, skipping suggestion");
+    setSuggestion(null);
+    return;
+  }
+
+  const firstAtt = attachments.find(a => selectedIds.includes(a.id));
+  if (!firstAtt) {
+    console.log("❌ No attachment selected");
+    setSuggestion(null);
+    return;
+  }
+
+  const filename = firstAtt.name.toLowerCase();
+  console.log("🔎 Matching for filename:", filename);
+
+  // Break filename into tokens
+  const tokens = filename.split(/[^a-z0-9]+/).filter(Boolean);
+  console.log("🔑 Tokens:", tokens);
+
+  // Find the Prospects root in the tree
+  const prospects = treeRef.current.find(n => n.name === "Prospects");
+  if (!prospects) {
+    console.log("❌ 'Prospects' folder not found in tree");
+    setSuggestion(null);
+    return;
+  }
+
+  // Build all contiguous substrings of tokens
+  const substrings: string[] = [];
+  for (let i = 0; i < tokens.length; i++) {
+    let accum = tokens[i];
+    substrings.push(accum);
+    for (let j = i + 1; j < tokens.length; j++) {
+      accum += " " + tokens[j];
+      substrings.push(accum);
     }
-    console.log('drive tree loaded, length =', treeRef.current.length);
+  }
 
-    const first = attachments.find(a => selectedIds.includes(a.id));
-    if (!first) {
-      setSuggestion(null);
-      return undefined;
-    }
+  let bestMatch: FolderNode | null = null;
+  let bestLen = 0;
 
-    const handle = setTimeout(() => {
-      try {
-        const tokens = first.name
-          .toLowerCase()
-          .split(/[^a-z0-9]+/)
-          .filter(Boolean);
-
-        const prospects = treeRef.current.find(n => n.name === "Prospects");
-        if (!prospects) {
-          setSuggestion(null);
-          return;
-        }
-
-        const substrings: string[] = [];
-        for (let i = 0; i < tokens.length; i++) {
-          let part = tokens[i];
-          substrings.push(part);
-          for (let j = i + 1; j < tokens.length; j++) {
-            part += " " + tokens[j];
-            substrings.push(part);
-          }
-        }
-
-        let match: FolderNode | null = null;
-        let bestLen = 0;
-        let bestSub = "";
-
-        const search = (node: FolderNode) => {
-          const lname = node.pathNames.join("/").toLowerCase();
-          for (const sub of substrings) {
-            if (lname.includes(sub) && sub.length > bestLen) {
-              bestLen = sub.length;
-              match = node;
-              bestSub = sub;
-            }
-          }
-          node.children.forEach(search);
-        };
-
-        search(prospects);
-
-        if (match) {
-          console.log("matched substring", bestSub);
-          setSuggestion(match);
-        } else {
-          console.log("no match found, falling back to Prospects");
-          setSuggestion(prospects);
-        }
-      } catch (err) {
-        console.error(err);
+  // Recursive search only within Prospects subtree
+  const searchNode = (node: FolderNode) => {
+    const fullPath = node.pathNames.join("/").toLowerCase();
+    for (const sub of substrings) {
+      if (fullPath.includes(sub) && sub.length > bestLen) {
+        bestLen = sub.length;
+        bestMatch = node;
       }
-    }, 20);
+    }
+    node.children.forEach(searchNode);
+  };
+  searchNode(prospects);
 
-    return () => clearTimeout(handle);
-  }, [attachments, selectedIds, driveId]);
+  if (bestMatch) {
+    console.log("✅ Best match:", bestMatch.pathNames.join("/"), "(length:", bestLen, ")");
+    setSuggestion(bestMatch);
+  } else {
+    console.log("🔄 No match found; falling back to Prospects");
+    setSuggestion(prospects);
+  }
+}, [attachments, selectedIds, driveId, treeLoaded]);
 
   return (
     <div className={styles.root}>

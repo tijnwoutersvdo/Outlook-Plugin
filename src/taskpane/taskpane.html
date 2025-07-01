@@ -9,7 +9,6 @@
   <!-- Office JavaScript API -->
   <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"
           type="text/javascript"></script>
-
   <script>
     Office.onReady(() => {
       Office.actions.associate("extractContact", extractContact);
@@ -58,9 +57,6 @@
                 companyName:    info.organization,
                 homeAddress:   { postalCode: info.postcode }
               };
-
-              // **Load MicrosoftAjax.js via the Office-provided loader**:
-              await OfficeExtension.loadMicrosoftAjaxHost(); 
 
               const graphRes = await fetch(
                 "https://graph.microsoft.com/v1.0/me/contacts",
@@ -177,4 +173,3 @@
   </script>
 </body>
 </html>
-

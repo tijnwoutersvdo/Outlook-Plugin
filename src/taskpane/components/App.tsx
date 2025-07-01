@@ -209,12 +209,14 @@ const App: React.FC = () => {
     });
   }, []);
 
-  // Suggest folder based on first selected attachment
+  // Suggest folder based on first selected attachment.
+  // Runs again when the tree finishes loading so suggestions work immediately.
   useEffect(() => {
     if (!treeRef.current.length) {
       setSuggestion(null);
       return undefined;
     }
+    console.log('drive tree loaded, length =', treeRef.current.length);
 
     const first = attachments.find(a => selectedIds.includes(a.id));
     if (!first) {
@@ -228,7 +230,6 @@ const App: React.FC = () => {
           .toLowerCase()
           .split(/[^a-z0-9]+/)
           .filter(Boolean);
-        console.debug("tokens", tokens);
 
         const prospects = treeRef.current.find(n => n.name === "Prospects");
         if (!prospects) {
@@ -265,10 +266,10 @@ const App: React.FC = () => {
         search(prospects);
 
         if (match) {
-          console.debug("matched substring", bestSub);
+          console.log("matched substring", bestSub);
           setSuggestion(match);
         } else {
-          console.debug("no match found, falling back to Prospects");
+          console.log("no match found, falling back to Prospects");
           setSuggestion(prospects);
         }
       } catch (err) {
@@ -292,10 +293,16 @@ const App: React.FC = () => {
         <>
           {suggestion && (
             <div
-              className="suggestion-banner"
+              className={styles.suggestion}
               onClick={() => acceptSuggestion(suggestion)}
             >
-              Save file here? <strong>{suggestion.path}</strong>
+              Save file here? <strong>{suggestion.pathNames.join('/')}</strong>
+              <span
+                className={styles.dismiss}
+                onClick={() => setSuggestion(null)}
+              >
+                ×
+              </span>
             </div>
           )}
           <div className={styles.breadcrumb}>

@@ -213,31 +213,64 @@ const App: React.FC = () => {
   useEffect(() => {
     if (!treeRef.current.length) {
       setSuggestion(null);
-      return undefined;
+      return;
     }
+
     const first = attachments.find(a => selectedIds.includes(a.id));
     if (!first) {
       setSuggestion(null);
-      return undefined;
+      return;
     }
+
     const handle = setTimeout(() => {
       const tokens = first.name.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
-      let best: FolderNode | null = null;
-      let score = 0;
-      const check = (node: FolderNode) => {
-        const lname = node.name.toLowerCase();
-        let local = 0;
-        for (const t of tokens) {
-          if (lname.includes(t)) local = Math.max(local, t.length);
+      console.debug("tokens", tokens);
+
+      const prospects = treeRef.current.find(n => n.name === "Prospects");
+      if (!prospects) {
+        setSuggestion(null);
+        return;
+      }
+
+      const substrings: string[] = [];
+      for (let i = 0; i < tokens.length; i++) {
+        let part = tokens[i];
+        substrings.push(part);
+        for (let j = i + 1; j < tokens.length; j++) {
+          part += " " + tokens[j];
+          substrings.push(part);
         }
-        if (local > score) { score = local; best = node; }
-        node.children.forEach(check);
+      }
+
+      let match: FolderNode | null = null;
+      let bestLen = 0;
+      let bestSub = "";
+
+      const search = (node: FolderNode) => {
+        const lname = node.path.toLowerCase();
+        for (const sub of substrings) {
+          if (lname.includes(sub) && sub.length > bestLen) {
+            bestLen = sub.length;
+            match = node;
+            bestSub = sub;
+          }
+        }
+        node.children.forEach(search);
       };
-      treeRef.current.forEach(check);
-      setSuggestion(best);
+
+      search(prospects);
+
+      if (match) {
+        console.debug("matched substring", bestSub);
+        setSuggestion(match);
+      } else {
+        console.debug("no match found, falling back to Prospects");
+        setSuggestion(prospects);
+      }
     }, 200);
+
     return () => clearTimeout(handle);
-  }, [attachments, selectedIds, graphToken]);
+  }, [attachments, selectedIds]);
 
   return (
     <div className={styles.root}>
@@ -251,19 +284,11 @@ const App: React.FC = () => {
       ) : (
         <>
           {suggestion && (
-            <div className={styles.suggestion} onClick={() => acceptSuggestion(suggestion)}>
-              <span>
-                Save file here? <strong>{suggestion.pathNames.join(" / ")}</strong>
-              </span>
-              <span
-                className={styles.dismiss}
-                onClick={e => {
-                  e.stopPropagation();
-                  setSuggestion(null);
-                }}
-              >
-                ×
-              </span>
+            <div
+              className="suggestion-banner"
+              onClick={() => acceptSuggestion(suggestion)}
+            >
+              Save file here? <strong>{suggestion.path}</strong>
             </div>
           )}
           <div className={styles.breadcrumb}>

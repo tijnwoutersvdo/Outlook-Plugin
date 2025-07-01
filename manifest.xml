@@ -22,6 +22,7 @@
     <AppDomain>https://appsforoffice.microsoft.com</AppDomain>
     <AppDomain>https://login.microsoftonline.com</AppDomain>
     <AppDomain>https://graph.microsoft.com</AppDomain>
+    <AppDomain>https://ajax.aspnetcdn.com</AppDomain>
   </AppDomains>
 
   <!-- Host & API-vereisten -->

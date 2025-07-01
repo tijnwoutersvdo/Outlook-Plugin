@@ -74,6 +74,7 @@ export interface FolderNode {
   children: FolderNode[];
   pathIds: string[];
   pathNames: string[];
+  path: string;
 }
 
 /**
@@ -96,10 +97,49 @@ export async function getDriveTree(token: string, driveId: string): Promise<Fold
       .map((c: any) => toNode(c, [...ids, c.id], [...names, c.name])),
     pathIds: ids,
     pathNames: names,
+    path: names.join(" / "),
   });
 
+  const loadAll = async (
+    itemId: string,
+    ids: string[],
+    names: string[]
+  ): Promise<FolderNode> => {
+    const childRes = await fetch(
+      `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${itemId}/children?$select=id,name,folder`,
+      { headers }
+    );
+    if (!childRes.ok) throw new Error(`Tree branch failed: ${childRes.status}`);
+    const childData = await childRes.json();
+    const folders = childData.value.filter((c: any) => c.folder);
+    const children = await Promise.all(
+      folders.map((c: any) =>
+        loadAll(c.id, [...ids, c.id], [...names, c.name])
+      )
+    );
+    return {
+      id: itemId,
+      name: names[names.length - 1],
+      children,
+      pathIds: ids,
+      pathNames: names,
+      path: names.join(" / "),
+    };
+  };
+
   const rootChildren = (data.children || []).filter((i: any) => i.folder);
-  return rootChildren.map((item: any) =>
-    toNode(item, ["root", item.id], ["Shared Documents", item.name])
-  );
+
+  const nodes: FolderNode[] = [];
+  for (const item of rootChildren) {
+    if (item.name === "Prospects") {
+      nodes.push(
+        await loadAll(item.id, ["root", item.id], ["Shared Documents", item.name])
+      );
+    } else {
+      nodes.push(
+        toNode(item, ["root", item.id], ["Shared Documents", item.name])
+      );
+    }
+  }
+  return nodes;
 }

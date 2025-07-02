@@ -187,38 +187,68 @@ const App: React.FC = () => {
     });
   }, []);
 
-  useEffect(() => {
+useEffect(() => {
+  // Only run once tree is ready & file selected
   if (!treeLoaded || !attachments.length || !selectedIds.length) {
-    console.log("❌ Tree not loaded or nothing selected, skipping suggestion");
+    console.log("❌ Tree not loaded or no selection → skipping suggestion");
     setSuggestion(null);
     return;
   }
 
-  const firstAtt = attachments.find(a => selectedIds.includes(a.id))!;
-  console.log("🏷️ Suggestion effect:", {
-    fileName:   firstAtt.name,
-    treeLoaded,
-    tree
-  });
+  const fileName = attachments.find(a => selectedIds.includes(a.id))!.name;
+  console.log("🏷️ Suggestion effect:", { fileName, treeLoaded, tree });
 
-  // 1) find the “Prospects” folder in your tree
-  const prospects = tree!.find(n => n.name === "Prospects");
-  if (!prospects) {
-    console.warn("⚠️ Could not find ‘Prospects’ node in tree");
+  // 1) Get the first "Prospects" under Shared
+  const topProspects = tree!.find(n => n.name === "Prospects");
+  if (!topProspects) {
+    console.warn("⚠️ No first‐level Prospects");
     setSuggestion(null);
     return;
   }
 
-  // 2) see if any child-folder name appears in the file name
-  const match = prospects.children.find(c =>
-    firstAtt.name.toLowerCase().includes(c.name.toLowerCase())
-  );
+  // 2) Drill into the nested "Prospects"
+  const nestedProspects = topProspects.children.find(c => c.name === "Prospects");
+  if (!nestedProspects) {
+    console.warn("⚠️ No nested Prospects → falling back to top Prospects");
+    setSuggestion(topProspects);
+    return;
+  }
 
-  const chosen = match || prospects;  // fallback
-  console.log("🎯 Suggestion:", chosen.pathNames.join(" / "));
+  // 3) Score each child of nestedProspects
+  let best: FolderNode | null = null;
+  let bestScore = 0;
+
+  for (const candidate of nestedProspects.children) {
+    // split folder name on non-word chars
+    const tokens = candidate.name.split(/[\s\-()]+/).filter(Boolean);
+    if (!tokens.length) continue;
+
+    // count how many tokens appear in fileName
+    const matches = tokens.reduce((count, tok) =>
+      fileName.toLowerCase().includes(tok.toLowerCase())
+        ? count + 1
+        : count
+    , 0);
+
+    const score = matches / tokens.length;
+    console.log(`   📂 ${candidate.name} → score ${score.toFixed(2)}`);
+    if (score > bestScore) {
+      bestScore = score;
+      best = candidate;
+    }
+  }
+
+  // 4) Choose if above threshold, else fallback to nested Prospects
+  const threshold = 0.4;
+  const chosen = best && bestScore >= threshold
+    ? best
+    : nestedProspects;
+
+  console.log(`🎯 Suggestion: ${chosen.pathNames.join(" / ")} (score=${bestScore.toFixed(2)})`);
   setSuggestion(chosen);
 
 }, [treeLoaded, attachments, selectedIds]);
+
 
   return (
     <div className={styles.root}>

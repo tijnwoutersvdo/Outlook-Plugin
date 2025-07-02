@@ -1,24 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<OfficeApp 
-  xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
-  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
-  xsi:type="MailApp">
+<OfficeApp xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
+           xsi:type="MailApp">
 
-  <!-- ── Basic settings ────────────────────────────────────── -->
+  <!-- ── Basic Info ─────────────────────────────────────────────────── -->
   <Id>9a952895-5132-4ba7-a989-b7dce20ea6f0</Id>
-  <Version>1.0.1.9</Version>
+  <Version>1.0.1.10</Version>        <!-- bumped so OWA picks up this change -->
   <ProviderName>Synergia TW</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
   <DisplayName DefaultValue="Synergia File Saver"/>
   <Description DefaultValue="Slaat bijlagen op SharePoint en extraheert contactgegevens."/>
 
-  <!-- Icons & support -->
+  <!-- Icon & support -->
   <IconUrl              DefaultValue="https://tijnwoutersvdo.github.io/Outlook-Plugin/assets/icon-64.png"/>
   <HighResolutionIconUrl DefaultValue="https://tijnwoutersvdo.github.io/Outlook-Plugin/assets/icon-128.png"/>
   <SupportUrl           DefaultValue="https://www.synergia.nl/help"/>
 
-  <!-- Whitelisted external domains -->
+  <!-- ── Whitelisted External Domains ──────────────────────────────── -->
   <AppDomains>
     <AppDomain>https://appsforoffice.microsoft.com</AppDomain>
     <AppDomain>https://login.microsoftonline.com</AppDomain>
@@ -26,13 +25,13 @@
     <AppDomain>https://ajax.aspnetcdn.com</AppDomain>
   </AppDomains>
 
-  <!-- Hosts & requirements -->
+  <!-- Host & API requirements -->
   <Hosts>
     <Host Name="Mailbox"/>
   </Hosts>
   <Requirements>
-    <Sets DefaultMinVersion="1.3">
-      <Set Name="Mailbox"/>
+    <Sets>
+      <Set Name="Mailbox" MinVersion="1.10"/>
     </Sets>
   </Requirements>
 
@@ -49,43 +48,40 @@
   <Permissions>ReadWriteItem</Permissions>
   <Rule xsi:type="ItemIs" ItemType="Message" FormType="Read"/>
 
-  <!-- ── VersionOverrides wrapper ─────────────────────────────────────── -->
-  <VersionOverrides 
-    xmlns="http://schemas.microsoft.com/office/mailappversionoverrides"
-    xsi:type="VersionOverridesV1_0">
+  <!-- ═════════════════════════ VersionOverrides ═════════════════════════ -->
+  <VersionOverrides xmlns="http://schemas.microsoft.com/office/mailappversionoverrides"
+                    xsi:type="VersionOverridesV1_0">
+    <VersionOverrides xmlns="http://schemas.microsoft.com/office/mailappversionoverrides/1.1"
+                      xsi:type="VersionOverridesV1_1">
 
-    <!-- Nested V1_1 block -->
-    <VersionOverrides 
-      xmlns="http://schemas.microsoft.com/office/mailappversionoverrides/1.1"
-      xsi:type="VersionOverridesV1_1">
-
-      <!-- 1) API sets -->
+      <!-- 1) API-sets (must use DefaultMinVersion inside VersionOverrides) -->
       <Requirements>
-        <bt:Sets DefaultMinVersion="1.3">
+        <bt:Sets DefaultMinVersion="1.10">
           <bt:Set Name="Mailbox"/>
         </bt:Sets>
-      </Requirements>
+      </Requirements>                                                           :contentReference[oaicite:0]{index=0}
 
-      <!-- 2) DesktopFormFactor, OnMessageOpen + ribbon -->
+      <!-- 2) Ribbon + OnMessageOpen command -->
       <Hosts>
         <Host xsi:type="MailHost">
           <DesktopFormFactor>
 
-            <!-- function file now points at your commands.html -->
+            <!-- Function file for both commands and UI points -->
             <FunctionFile resid="CommandFunctionFile.Url"/>
 
-            <!-- run your onOpen handler -->
+            <!-- Automatic “on open” handler for Extract Contact -->
             <ExtensionPoint xsi:type="OnMessageOpen">
+              <SourceLocation resid="CommandFunctionFile.Url"/>
               <FunctionName>onMessageOpenHandler</FunctionName>
-            </ExtensionPoint>
+            </ExtensionPoint>                                        :contentReference[oaicite:1]{index=1}
 
-            <!-- ribbon buttons still show the taskpane -->
+            <!-- The existing ribbon buttons -->
             <ExtensionPoint xsi:type="MessageReadCommandSurface">
               <OfficeTab id="TabDefault">
                 <Group id="FileSaverGroup">
                   <Label resid="GroupLabel"/>
 
-                  <!-- Open File Saver -->
+                  <!-- Open File Saver pane -->
                   <Control xsi:type="Button" id="OpenPaneBtn">
                     <Label resid="PaneButton.Label"/>
                     <Supertip>
@@ -102,7 +98,7 @@
                     </Action>
                   </Control>
 
-                  <!-- Extract & Edit Contact -->
+                  <!-- Extract & Edit Contact button -->
                   <Control xsi:type="Button" id="ExtractContactButton">
                     <Label resid="ExtractButton.Label"/>
                     <Supertip>
@@ -135,9 +131,9 @@
           <bt:Image id="Icon80" DefaultValue="https://tijnwoutersvdo.github.io/Outlook-Plugin/assets/icon-80.png"/>
         </bt:Images>
         <bt:Urls>
-          <bt:Url id="Taskpane.Url"             DefaultValue="https://tijnwoutersvdo.github.io/Outlook-Plugin/taskpane.html"/>
-          <bt:Url id="Taskpane.UrlContact"      DefaultValue="https://tijnwoutersvdo.github.io/Outlook-Plugin/taskpane.html?mode=contact"/>
-          <bt:Url id="CommandFunctionFile.Url"  DefaultValue="https://tijnwoutersvdo.github.io/Outlook-Plugin/commands.html"/>
+          <bt:Url id="Taskpane.Url"            DefaultValue="https://tijnwoutersvdo.github.io/Outlook-Plugin/taskpane.html"/>
+          <bt:Url id="Taskpane.UrlContact"     DefaultValue="https://tijnwoutersvdo.github.io/Outlook-Plugin/taskpane.html?mode=contact"/>
+          <bt:Url id="CommandFunctionFile.Url" DefaultValue="https://tijnwoutersvdo.github.io/Outlook-Plugin/commands.html"/>
         </bt:Urls>
         <bt:ShortStrings>
           <bt:String id="GroupLabel"          DefaultValue="Synergia File Saver"/>
@@ -167,4 +163,5 @@
     </VersionOverrides>
   </VersionOverrides>
 </OfficeApp>
+
 

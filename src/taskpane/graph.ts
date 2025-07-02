@@ -38,7 +38,7 @@ export async function createContact(token: string, info: ContactInfo): Promise<v
 }
 
 /**
- * A node in our folder‐tree:
+ * A node in our folder‐tree for suggestions.
  */
 export interface FolderNode {
   id:        string;
@@ -69,7 +69,7 @@ export async function getSiteAndDrive(token: string): Promise<{ siteId: string; 
   const siteJson = await siteRes.json();
   const siteId   = siteJson.id;
 
-  // 2) Fetch the **default** drive for that site
+  // 2) Fetch the default drive for that site
   const driveRes = await fetch(
     `https://graph.microsoft.com/v1.0/sites/${siteId}/drive`,
     { headers }
@@ -84,7 +84,7 @@ export async function getSiteAndDrive(token: string): Promise<{ siteId: string; 
 }
 
 /**
- * Recursively fetch up to 2 levels under “Prospects”, **using path-based URLs**.
+ * Recursively fetch up to 2 levels under “Prospects”, using path-based URLs.
  */
 async function loadProspectsSubtree(
   driveId:   string,
@@ -93,7 +93,7 @@ async function loadProspectsSubtree(
   headers:   Record<string,string>,
   depth:     number
 ): Promise<FolderNode> {
-  // Depth guard
+  // Stop after 2 levels
   if (depth >= 2) {
     const id   = pathIds[pathIds.length - 1];
     const name = pathNames[pathNames.length - 1];
@@ -104,13 +104,12 @@ async function loadProspectsSubtree(
   const relSegments = pathNames.slice(1).map(encodeURIComponent);
   const relPath     = relSegments.join("/");
 
-  // Path‐based children fetch
-  const childrenRes = await fetch(
-    `https://graph.microsoft.com/v1.0/drives/${driveId}/root:/${relPath}:/children?$select=id,name,folder`,
-    { headers }
-  );
+  // Path-based children fetch
+  const url = `https://graph.microsoft.com/v1.0/drives/${driveId}/root:/${relPath}:/children?$select=id,name,folder`;
+  const childrenRes = await fetch(url, { headers });
   if (!childrenRes.ok) {
-    throw new Error(`loadProspectsSubtree: children fetch failed ${childrenRes.status}`);
+    const errText = await childrenRes.text();
+    throw new Error(`loadProspectsSubtree: children fetch failed ${childrenRes.status}: ${errText}`);
   }
   const childrenJson = await childrenRes.json();
 
@@ -135,15 +134,15 @@ async function loadProspectsSubtree(
 }
 
 /**
- * Build the full tree for folder‐suggestions:
- *  • Fetch root‐level folders of the drive
- *  • If we see “Shared”, drill into it (its children)
- *  • Under “Prospects”, recurse two levels deep via loadProspectsSubtree
+ * Build the full tree for folder-suggestions:
+ *  • List root children of the drive.
+ *  • If a folder named “Shared” exists, drill into it and use its children.
+ *  • Under “Prospects”, recurse two levels deep via loadProspectsSubtree.
  */
 export async function getDriveTree(token: string, driveId: string): Promise<FolderNode[]> {
   const headers = { Authorization: `Bearer ${token}` };
 
-  // 1) List root children
+  // 1) Get root-level child items
   const rootRes = await fetch(
     `https://graph.microsoft.com/v1.0/drives/${driveId}/root/children?$select=id,name,folder`,
     { headers }
@@ -152,12 +151,14 @@ export async function getDriveTree(token: string, driveId: string): Promise<Fold
     throw new Error(`getDriveTree: root fetch failed ${rootRes.status}`);
   }
   const rootJson = await rootRes.json();
+  console.log("🔍 Root folders:", rootJson.value.map((i: any) => i.name));
 
   const nodes: FolderNode[] = [];
+
   // 2) Look for the special “Shared” container
   for (const item of rootJson.value.filter((i: any) => i.folder)) {
     if (item.name === "Shared") {
-      // drill into Shared’s children
+      // Drill into Shared’s children
       const sharedRes = await fetch(
         `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${item.id}/children?$select=id,name,folder`,
         { headers }
@@ -166,6 +167,7 @@ export async function getDriveTree(token: string, driveId: string): Promise<Fold
         throw new Error(`getDriveTree: Shared children fetch failed ${sharedRes.status}`);
       }
       const sharedJson = await sharedRes.json();
+      console.log("🔍 Shared → children:", sharedJson.value.map((i: any) => i.name));
 
       for (const sharedChild of sharedJson.value.filter((i: any) => i.folder)) {
         const baseIds   = ["root", item.id, sharedChild.id];
@@ -189,7 +191,9 @@ export async function getDriveTree(token: string, driveId: string): Promise<Fold
       }
     }
   }
+
   return nodes;
 }
+
 
 

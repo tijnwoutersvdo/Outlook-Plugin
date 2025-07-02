@@ -71,6 +71,7 @@ const App: React.FC = () => {
       setGraphToken(token);
 
       const ids = await getSiteAndDrive(token);
+      console.log("🔑 Logged in — siteId, driveId:", ids);
       setSiteId(ids.siteId);
       setDriveId(ids.driveId);
 

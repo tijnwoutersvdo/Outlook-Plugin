@@ -6,7 +6,7 @@
 
   <!-- ── Basic Info ─────────────────────────────────────────────────── -->
   <Id>9a952895-5132-4ba7-a989-b7dce20ea6f0</Id>
-  <Version>1.0.1.11</Version>
+  <Version>1.0.1.12</Version>
   <ProviderName>Synergia TW</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
   <DisplayName DefaultValue="Synergia File Saver"/>

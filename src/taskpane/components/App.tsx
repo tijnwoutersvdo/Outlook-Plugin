@@ -1,8 +1,8 @@
 import * as React from "react";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { makeStyles } from "@fluentui/react-components";
 import { getGraphToken } from "../authConfig";
-import { getSiteAndDrive, getDriveTree, FolderNode } from "../graph";
+import { getSiteAndDrive } from "../graph";
 import { getAttachments, IAttachment } from "../taskpane";
 import { ContactForm } from "./ContactForm";
 
@@ -14,8 +14,6 @@ const useStyles = makeStyles({
   list:        { listStyleType: "none", padding: 0, margin: 0 },
   item:        { cursor: "pointer", padding: "4px 8px", borderRadius: "4px", marginBottom: "4px", backgroundColor: "#f3f2f1" },
   input:       { marginRight: "8px", padding: "4px 8px", fontSize: "1rem" },
-  suggestion:  { marginBottom: "8px", backgroundColor: "#e7f3ff", padding: "8px", borderRadius: "4px", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" },
-  dismiss:     { marginLeft: "8px", cursor: "pointer", fontWeight: "bold" },
   button:      { padding: "8px 16px", fontSize: "1rem", cursor: "pointer", marginTop: "8px" },
   error:       { color: "red", marginBottom: "16px" },
   success:     { color: "green", marginBottom: "16px" },
@@ -24,13 +22,13 @@ const useStyles = makeStyles({
 const App: React.FC = () => {
   const styles = useStyles();
 
-  // Contact‐mode
+  // if mode=contact, delegate to your ContactForm
   const params = new URLSearchParams(window.location.search);
   if (params.get("mode") === "contact") {
     return <ContactForm />;
   }
 
-  // File-saver state
+  // ─ State for File-Saver pane ──────────────────────────────────────────────
   const [isSignedIn, setIsSignedIn]       = useState(false);
   const [error, setError]                 = useState<string | null>(null);
   const [success, setSuccess]             = useState<string | null>(null);
@@ -44,12 +42,8 @@ const App: React.FC = () => {
   const [attachments, setAttachments]     = useState<IAttachment[]>([]);
   const [selectedIds, setSelectedIds]     = useState<string[]>([]);
   const [newFolderName, setNewFolderName] = useState<string>("");
-  const [suggestion, setSuggestion]       = useState<FolderNode | null>(null);
 
-  const treeRef = useRef<FolderNode[]>([]);
-  const [treeLoaded, setTreeLoaded]       = useState(false);
-
-  // Load subfolders
+  // load children for a given folder
   const loadSubfolders = async (token: string, drive: string, parentId: string) => {
     const res = await fetch(
       `https://graph.microsoft.com/v1.0/drives/${drive}/items/${parentId}/children`,
@@ -58,12 +52,12 @@ const App: React.FC = () => {
     if (!res.ok) throw new Error(`Mappen laden faalde: ${res.status}`);
     const data = await res.json();
     const subs = data.value
-      .filter((item: any) => item.folder)
-      .map((item: any) => ({ id: item.id, name: item.name }));
+      .filter((i: any) => i.folder)
+      .map((i: any) => ({ id: i.id, name: i.name }));
     setFolders(subs);
   };
 
-  // Sign in & initialize
+  // sign in and prime pane
   const signInAndLoad = async () => {
     setError(null);
     setSuccess(null);
@@ -75,12 +69,7 @@ const App: React.FC = () => {
       setSiteId(ids.siteId);
       setDriveId(ids.driveId);
 
-      // Build suggestion tree
-      treeRef.current = await getDriveTree(token, ids.driveId);
-      console.log("Drive tree fetched, nodes:", treeRef.current.length);
-      setTreeLoaded(true);
-
-      // Initial UI browse
+      // load the root children
       await loadSubfolders(token, ids.driveId, "root");
       setIsSignedIn(true);
     } catch (e: any) {
@@ -89,27 +78,13 @@ const App: React.FC = () => {
     }
   };
 
-  // Toggle attachment selection
   const toggleSelect = (id: string) => {
     setSelectedIds(prev =>
       prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
     );
   };
 
-  // Accept suggestion
-  const acceptSuggestion = (node: FolderNode) => {
-    const newPath = node.pathIds.map((id, idx) => ({
-      id,
-      name: node.pathNames[idx],
-    }));
-    setPath(newPath);
-    if (graphToken && driveId) {
-      loadSubfolders(graphToken, driveId, node.id);
-    }
-    setSuggestion(null);
-  };
-
-  // Upload selected attachments to SharePoint, optionally in new folder
+  // upload attachments (identical to your original)
   const uploadToSharePoint = async () => {
     setError(null);
     setSuccess(null);
@@ -118,34 +93,28 @@ const App: React.FC = () => {
       return;
     }
 
-    let parentId = path[path.length - 1].id;
+    let parentId       = path[path.length - 1].id;
     let targetFolderId = parentId;
 
     if (newFolderName.trim()) {
-      // Create new folder or get existing
+      // create or find existing folder
       const createRes = await fetch(
         `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${parentId}/children`,
         {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${graphToken}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ name: newFolderName.trim(), folder: {} })
+          method:  "POST",
+          headers: { Authorization: `Bearer ${graphToken}`, "Content-Type": "application/json" },
+          body:    JSON.stringify({ name: newFolderName.trim(), folder: {} })
         }
       );
       if (createRes.ok) {
-        const folder = await createRes.json();
-        targetFolderId = folder.id;
+        targetFolderId = (await createRes.json()).id;
       } else if (createRes.status === 409) {
-        // Folder exists: find it
-        const listRes = await fetch(
+        const listRes   = await fetch(
           `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${parentId}/children`,
           { headers: { Authorization: `Bearer ${graphToken}` } }
         );
-        const listData = await listRes.json();
-        const existing = listData.value.find(
-          (i: any) => i.folder && i.name === newFolderName.trim()
+        const existing  = (await listRes.json()).value.find((i: any) =>
+          i.folder && i.name === newFolderName.trim()
         );
         if (!existing) {
           setError("Map bestaat maar niet gevonden");
@@ -159,9 +128,7 @@ const App: React.FC = () => {
     }
 
     try {
-      for (const att of attachments.filter(a =>
-        selectedIds.includes(a.id)
-      )) {
+      for (const att of attachments.filter(a => selectedIds.includes(a.id))) {
         const result: any = await new Promise(res =>
           Office.context.mailbox.item.getAttachmentContentAsync(att.id, {}, res)
         );
@@ -170,26 +137,20 @@ const App: React.FC = () => {
           result.value.format === "base64"
         ) {
           const arrayBuffer = Uint8Array.from(
-            atob(result.value.content),
-            c => c.charCodeAt(0)
+            atob(result.value.content), c => c.charCodeAt(0)
           );
           await fetch(
             `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${targetFolderId}:/${att.name}:/content`,
             {
-              method: "PUT",
-              headers: {
-                Authorization: `Bearer ${graphToken}`,
-                "Content-Type": "application/octet-stream"
-              },
-              body: arrayBuffer
+              method:  "PUT",
+              headers: { Authorization: `Bearer ${graphToken}`, "Content-Type": "application/octet-stream" },
+              body:    arrayBuffer
             }
           );
         }
       }
       setSuccess(
-        `Bijlagen succesvol geüpload naar “${
-          newFolderName.trim() || "huidige map"
-        }”.`
+        `Bijlagen succesvol geüpload naar “${newFolderName.trim() || "huidige map"}”.`
       );
       setNewFolderName("");
       await loadSubfolders(graphToken, driveId, parentId);
@@ -199,189 +160,99 @@ const App: React.FC = () => {
     }
   };
 
-  // Load attachments on pane open
+  // on mount: grab your attachments
   useEffect(() => {
-    Office.onReady(() => {
-      console.log("🛠️  File-saver pane Office.onReady fired");
-      (async () => {
-        try {
-          const atts = await getAttachments();
-          console.log("📎 Attachments loaded:", atts.length);
-          setAttachments(atts);
-          const initial = atts
-            .filter(a => !a.name.toLowerCase().includes("image"))
-            .map(a => a.id);
-          setSelectedIds(initial);
-        } catch (e: any) {
-          console.error("❌ Error loading attachments:", e);
-          setError("Kon bijlagen niet laden: " + e.message);
-        }
-      })();
+    Office.onReady().then(async () => {
+      try {
+        const atts = await getAttachments();
+        setAttachments(atts);
+        const initial = atts
+          .filter(a => !a.name.toLowerCase().includes("image"))
+          .map(a => a.id);
+        setSelectedIds(initial);
+      } catch (e: any) {
+        setError("Kon bijlagen niet laden: " + e.message);
+      }
     });
   }, []);
 
-  // Suggestion effect
-  useEffect(() => {
-    console.log("🏷️  Suggestion effect 🔄", {
-      attachments: attachments.length,
-      selected:    selectedIds.length,
-      driveId,
-      treeLoaded,
-      treeSize:    treeRef.current.length
-    });
-
-    if (!treeLoaded) {
-      console.log("❌ Tree not loaded, skipping suggestion");
-      setSuggestion(null);
-      return;
-    }
-
-    const first = attachments.find(a => selectedIds.includes(a.id));
-    if (!first) {
-      setSuggestion(null);
-      return;
-    }
-
-    const filename = first.name.toLowerCase();
-    console.log("🔎 Matching for filename:", filename);
-
-    const tokens = filename.split(/[^a-z0-9]+/).filter(Boolean);
-    console.log("🔑 Tokens:", tokens);
-
-    const prospects = treeRef.current.find(n => n.name === "Prospects");
-    if (!prospects) {
-      console.log("❌ No Prospects folder found");
-      setSuggestion(null);
-      return;
-    }
-
-    // Build all contiguous substrings
-    const substrings: string[] = [];
-    for (let i = 0; i < tokens.length; i++) {
-      let accum = tokens[i];
-      substrings.push(accum);
-      for (let j = i + 1; j < tokens.length; j++) {
-        accum += " " + tokens[j];
-        substrings.push(accum);
-      }
-    }
-
-    let bestMatch: FolderNode | null = null;
-    let bestLen = 0;
-    const searchNode = (node: FolderNode) => {
-      const fullPath = node.pathNames.join("/").toLowerCase();
-      for (const sub of substrings) {
-        if (fullPath.includes(sub) && sub.length > bestLen) {
-          bestLen = sub.length;
-          bestMatch = node;
-        }
-      }
-      node.children.forEach(searchNode);
-    };
-    searchNode(prospects);
-
-    if (bestMatch) {
-      console.log("✅ Best match:", bestMatch.pathNames.join("/"));
-      setSuggestion(bestMatch);
-    } else {
-      console.log("🔄 No match; default to Prospects");
-      setSuggestion(prospects);
-    }
-  }, [attachments, selectedIds, driveId, treeLoaded]);
-
   return (
     <div className={styles.root}>
-      {error && <div className={styles.error}>{error}</div>}
+      {error   && <div className={styles.error}>{error}</div>}
       {success && <div className={styles.success}>{success}</div>}
 
-      {!isSignedIn ? (
-        <button className={styles.button} onClick={signInAndLoad}>
-          Sign in to SharePoint
-        </button>
-      ) : (
-        <>
-          {suggestion && (
-            <div
-              className={styles.suggestion}
-              onClick={() => acceptSuggestion(suggestion)}
-            >
-              Save file here? <strong>{suggestion.pathNames.join("/")}</strong>
-              <span
-                className={styles.dismiss}
-                onClick={() => setSuggestion(null)}
-              >
-                ×
-              </span>
+      {!isSignedIn
+        ? <button className={styles.button} onClick={signInAndLoad}>
+            Sign in to SharePoint
+          </button>
+        : <>
+            <div className={styles.breadcrumb}>
+              {path.map((crumb, idx) => (
+                <React.Fragment key={crumb.id}>
+                  <button
+                    className={styles.crumbButton}
+                    onClick={() => {
+                      const newPath = path.slice(0, idx + 1);
+                      setPath(newPath);
+                      if (graphToken && driveId) {
+                        loadSubfolders(graphToken, driveId, newPath[newPath.length - 1].id);
+                      }
+                    }}
+                  >
+                    {crumb.name}
+                  </button>
+                  {idx < path.length - 1 && <span>&gt;</span>}
+                </React.Fragment>
+              ))}
             </div>
-          )}
 
-          <div className={styles.breadcrumb}>
-            {path.map((crumb, idx) => (
-              <React.Fragment key={crumb.id}>
-                <button
-                  className={styles.crumbButton}
+            <ul className={styles.list}>
+              {folders.map(f => (
+                <li
+                  key={f.id}
+                  className={styles.item}
                   onClick={() => {
-                    const newPath = path.slice(0, idx + 1);
-                    setPath(newPath);
+                    setPath(prev => [...prev, f]);
                     if (graphToken && driveId) {
-                      loadSubfolders(graphToken, driveId, newPath[newPath.length - 1].id);
+                      loadSubfolders(graphToken, driveId, f.id);
                     }
                   }}
                 >
-                  {crumb.name}
-                </button>
-                {idx < path.length - 1 && <span>&gt;</span>}
-              </React.Fragment>
-            ))}
-          </div>
-
-          <ul className={styles.list}>
-            {folders.map(f => (
-              <li
-                key={f.id}
-                className={styles.item}
-                onClick={() => {
-                  setPath(prev => [...prev, f]);
-                  if (graphToken && driveId) {
-                    loadSubfolders(graphToken, driveId, f.id);
-                  }
-                }}
-              >
-                📂 {f.name}
-              </li>
-            ))}
-          </ul>
-
-          <div className={styles.section}>
-            <input
-              className={styles.input}
-              placeholder="Nieuwe mapnaam (optioneel)"
-              value={newFolderName}
-              onChange={e => setNewFolderName(e.target.value)}
-            />
-            <button className={styles.button} onClick={uploadToSharePoint}>
-              Upload naar SharePoint
-            </button>
-          </div>
-
-          <div className={styles.section}>
-            <ul className={styles.list}>
-              {attachments.map(a => (
-                <li key={a.id} className={styles.item}>
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.includes(a.id)}
-                      onChange={() => toggleSelect(a.id)}
-                    />{" "}
-                    {a.name} ({Math.round(a.size / 1024)} KB)
-                  </label>
+                  📂 {f.name}
                 </li>
               ))}
             </ul>
-          </div>
-        </>
-      )}
+
+            <div className={styles.section}>
+              <input
+                className={styles.input}
+                placeholder="Nieuwe mapnaam (optioneel)"
+                value={newFolderName}
+                onChange={e => setNewFolderName(e.target.value)}
+              />
+              <button className={styles.button} onClick={uploadToSharePoint}>
+                Upload naar SharePoint
+              </button>
+            </div>
+
+            <div className={styles.section}>
+              <ul className={styles.list}>
+                {attachments.map(a => (
+                  <li key={a.id} className={styles.item}>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(a.id)}
+                        onChange={() => toggleSelect(a.id)}
+                      />{" "}
+                      {a.name} ({Math.round(a.size / 1024)} KB)
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </>
+      }
     </div>
   );
 };

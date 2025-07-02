@@ -1,6 +1,39 @@
-// File: src/graph.ts
+/**
+ * Haalt via Microsoft Graph de siteId en driveId op voor de SharePoint-site.
+ * @param token Bearer access token voor Microsoft Graph
+ * @returns Promise met { siteId, driveId }
+ */
+export async function getSiteAndDrive(token: string): Promise<{ siteId: string; driveId: string }> {
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  };
 
-/** Payload for creating a new Outlook contact. */
+  // 1) Site ophalen via pad '/sites/Data'
+  const siteRes = await fetch(
+    "https://graph.microsoft.com/v1.0/sites/synergiacapital.sharepoint.com:/sites/Data",
+    { headers }
+  );
+  if (!siteRes.ok) {
+    throw new Error(`Fout bij ophalen site: ${siteRes.status} ${siteRes.statusText}`);
+  }
+  const siteData = await siteRes.json();
+  const siteId: string = siteData.id;
+
+  // 2) Drive (documentbibliotheek) ophalen voor deze site
+  const driveRes = await fetch(
+    `https://graph.microsoft.com/v1.0/sites/${siteId}/drive`,
+    { headers }
+  );
+  if (!driveRes.ok) {
+    throw new Error(`Fout bij ophalen drive: ${driveRes.status} ${driveRes.statusText}`);
+  }
+  const driveData = await driveRes.json();
+  const driveId: string = driveData.id;
+
+  return { siteId, driveId };
+}
+
 export interface ContactInfo {
   name:         string;
   email:        string;
@@ -9,69 +42,36 @@ export interface ContactInfo {
   postcode:     string;
 }
 
-/** Create a new contact via Microsoft Graph. */
 export async function createContact(token: string, info: ContactInfo): Promise<void> {
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    "Content-Type":  "application/json"
+  };
+
+  const body = {
+    givenName:       info.name,
+    emailAddresses: [{ address: info.email, name: info.name }],
+    businessPhones:  [ info.phone ],
+    companyName:     info.organization,
+    homeAddress:    { postalCode: info.postcode }
+  };
+
   const res = await fetch("https://graph.microsoft.com/v1.0/me/contacts", {
     method:  "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      givenName:      info.name,
-      emailAddresses: [{ address: info.email, name: info.name }],
-      businessPhones: [ info.phone ],
-      companyName:    info.organization,
-      homeAddress:    { postalCode: info.postcode }
-    })
+    headers,
+    body:    JSON.stringify(body)
   });
+
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`createContact failed: ${res.status} ${text}`);
+    throw new Error(`Contacts.Create faalde: ${res.status} ${text}`);
   }
 }
 
-// ────────────────────────────────────────────────────────────────────────────────
-// Site & Drive lookup
-// ────────────────────────────────────────────────────────────────────────────────
-export interface SiteAndDrive {
-  siteId:  string;
-  driveId: string;
-}
+// —──────────────────────────────────────────────────────────────────────────────
+// Folder tree and FolderNode (if you still need your getDriveTree / suggestions)
+// —──────────────────────────────────────────────────────────────────────────────
 
-/**
- * Returns the SharePoint siteId and the **default** document-library driveId
- * by calling `/sites/{siteId}/drive`. This always works, regardless of the
- * library’s display name.
- */
-export async function getSiteAndDrive(token: string): Promise<SiteAndDrive> {
-  const headers = { Authorization: `Bearer ${token}` };
-
-  // 1) Get the root site
-  const siteRes = await fetch("https://graph.microsoft.com/v1.0/sites/root", { headers });
-  if (!siteRes.ok) {
-    throw new Error(`getSiteAndDrive: site lookup failed ${siteRes.status}`);
-  }
-  const siteJson = await siteRes.json();
-  const siteId   = siteJson.id;
-
-  // 2) Fetch the default drive for that site
-  const driveRes = await fetch(
-    `https://graph.microsoft.com/v1.0/sites/${siteId}/drive`,
-    { headers }
-  );
-  if (!driveRes.ok) {
-    throw new Error(`getSiteAndDrive: default drive lookup failed ${driveRes.status}`);
-  }
-  const driveJson = await driveRes.json();
-  const driveId   = driveJson.id;
-
-  return { siteId, driveId };
-}
-
-// ────────────────────────────────────────────────────────────────────────────────
-// Folder tree and suggestions
-// ────────────────────────────────────────────────────────────────────────────────
 export interface FolderNode {
   id:         string;
   name:       string;

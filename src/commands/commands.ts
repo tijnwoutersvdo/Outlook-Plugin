@@ -79,7 +79,7 @@ export async function onMessageOpenHandler(event: any) {
         ? `Update information for "${info.name}"?`
         : `Add "${info.name}" to your contacts?`;
 
-      item.notificationMessages.addAsync("contactPrompt", {
+      const details: any = {
         type: Office.MailboxEnums.ItemNotificationMessageType.InformationalMessage,
         message,
         icon: "Icon.80x80",
@@ -88,7 +88,9 @@ export async function onMessageOpenHandler(event: any) {
           { action: "addContactYes", title: "Yes" },
           { action: "addContactNo", title: "No" },
         ],
-      });
+      };
+
+      item.notificationMessages.addAsync("contactPrompt", details);
     }
   } catch (err) {
     console.error(err);

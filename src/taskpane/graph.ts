@@ -1,8 +1,6 @@
 // File: src/graph.ts
 
-/**
- * Data needed to create a new contact.
- */
+/** Payload for new contact creation. */
 export interface ContactInfo {
   name:         string;
   email:        string;
@@ -11,29 +9,22 @@ export interface ContactInfo {
   postcode:     string;
 }
 
-/**
- * Creates a new Outlook contact via Microsoft Graph.
- */
+/** Create an Outlook contact via Microsoft Graph. */
 export async function createContact(token: string, info: ContactInfo): Promise<void> {
-  const headers = {
-    Authorization: `Bearer ${token}`,
-    "Content-Type": "application/json"
-  };
-
-  const body = {
-    givenName:      info.name,
-    emailAddresses:[{ address: info.email, name: info.name }],
-    businessPhones: [ info.phone ],
-    companyName:    info.organization,
-    homeAddress:   { postalCode: info.postcode }
-  };
-
   const res = await fetch("https://graph.microsoft.com/v1.0/me/contacts", {
     method:  "POST",
-    headers,
-    body:    JSON.stringify(body)
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      givenName:      info.name,
+      emailAddresses: [{ address: info.email, name: info.name }],
+      businessPhones: [ info.phone ],
+      companyName:    info.organization,
+      homeAddress:    { postalCode: info.postcode }
+    })
   });
-
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`createContact failed: ${res.status} ${text}`);
@@ -43,20 +34,19 @@ export async function createContact(token: string, info: ContactInfo): Promise<v
 // ——————————————————————————————————————————————————————————————————————————————————
 // Site & Drive lookup
 // ——————————————————————————————————————————————————————————————————————————————————
-
 export interface SiteAndDrive {
   siteId:  string;
   driveId: string;
 }
 
 /**
- * Given a Graph access token, returns the SharePoint siteId and
- * the driveId for your default “Shared Documents” library.
+ * Returns the SharePoint siteId and driveId for the
+ * “Shared Documents” library by enumerating drives.
  */
 export async function getSiteAndDrive(token: string): Promise<SiteAndDrive> {
   const headers = { Authorization: `Bearer ${token}` };
 
-  // 1) Lookup the root SharePoint site
+  // 1) Root site
   const siteRes = await fetch("https://graph.microsoft.com/v1.0/sites/root", { headers });
   if (!siteRes.ok) {
     throw new Error(`getSiteAndDrive: site lookup failed ${siteRes.status}`);
@@ -64,7 +54,7 @@ export async function getSiteAndDrive(token: string): Promise<SiteAndDrive> {
   const siteJson = await siteRes.json();
   const siteId   = siteJson.id;
 
-  // 2) List drives under that site
+  // 2) All drives under the site
   const drivesRes = await fetch(
     `https://graph.microsoft.com/v1.0/sites/${siteId}/drives`,
     { headers }
@@ -74,7 +64,7 @@ export async function getSiteAndDrive(token: string): Promise<SiteAndDrive> {
   }
   const drivesJson = await drivesRes.json();
 
-  // 3) Find “Shared Documents”
+  // 3) Find the “Documents” or “Shared Documents” drive
   const docDrive = drivesJson.value.find((d: any) =>
     d.name === "Documents" || d.name === "Shared Documents"
   );
@@ -88,7 +78,6 @@ export async function getSiteAndDrive(token: string): Promise<SiteAndDrive> {
 // ——————————————————————————————————————————————————————————————————————————————————
 // Folder tree and FolderNode
 // ——————————————————————————————————————————————————————————————————————————————————
-
 export interface FolderNode {
   id:         string;
   name:       string;
@@ -99,13 +88,13 @@ export interface FolderNode {
 }
 
 /**
- * Fetch the first-level folders under the drive’s root,
- * then for “Prospects” recurse two levels deep.
+ * Fetch first-level folders under root, then recurse
+ * two levels deep only under the “Prospects” folder.
  */
 export async function getDriveTree(token: string, driveId: string): Promise<FolderNode[]> {
   const headers = { Authorization: `Bearer ${token}` };
 
-  // 1) Get root children
+  // 1) Root children
   const rootRes = await fetch(
     `https://graph.microsoft.com/v1.0/drives/${driveId}/root/children?$select=id,name,folder`,
     { headers }
@@ -122,13 +111,11 @@ export async function getDriveTree(token: string, driveId: string): Promise<Fold
     const basePath  = baseNames.join(" / ");
 
     if (item.name === "Prospects") {
-      // Recurse two levels under Prospects
       const prospectsNode = await loadProspectsSubtree(
         item.id, baseIds, baseNames, headers, /* depth */ 0
       );
       nodes.push(prospectsNode);
     } else {
-      // No deeper expansion
       nodes.push({
         id:        item.id,
         name:      item.name,
@@ -144,7 +131,7 @@ export async function getDriveTree(token: string, driveId: string): Promise<Fold
 }
 
 /**
- * Helper: recursively fetch subfolders up to depth=2 under Prospects.
+ * Recursively fetch subfolders up to two levels under Prospects.
  */
 async function loadProspectsSubtree(
   itemId:    string,
@@ -195,3 +182,4 @@ async function loadProspectsSubtree(
     path:      pathNames.join(" / ")
   };
 }
+

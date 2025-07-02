@@ -1,5 +1,3 @@
-// File: src/taskpane/components/App.tsx
-
 import * as React from "react";
 import { useEffect, useState, useRef } from "react";
 import { makeStyles } from "@fluentui/react-components";
@@ -24,35 +22,34 @@ const useStyles = makeStyles({
 });
 
 const App: React.FC = () => {
-  console.log("🚀 App component rendered");
   const styles = useStyles();
 
-  // If mode=contact, render the ContactForm
+  // Contact‐mode
   const params = new URLSearchParams(window.location.search);
   if (params.get("mode") === "contact") {
     return <ContactForm />;
   }
 
-  // State for File Saver UI
-  const [isSignedIn, setIsSignedIn]           = useState(false);
-  const [error, setError]                     = useState<string | null>(null);
-  const [success, setSuccess]                 = useState<string | null>(null);
-  const [graphToken, setGraphToken]           = useState<string | null>(null);
-  const [siteId, setSiteId]                   = useState<string | null>(null);
-  const [driveId, setDriveId]                 = useState<string | null>(null);
-  const [path, setPath]                       = useState<{ id: string; name: string }[]>([
+  // File-saver state
+  const [isSignedIn, setIsSignedIn]       = useState(false);
+  const [error, setError]                 = useState<string | null>(null);
+  const [success, setSuccess]             = useState<string | null>(null);
+  const [graphToken, setGraphToken]       = useState<string | null>(null);
+  const [siteId, setSiteId]               = useState<string | null>(null);
+  const [driveId, setDriveId]             = useState<string | null>(null);
+  const [path, setPath]                   = useState<{ id: string; name: string }[]>([
     { id: "root", name: "Shared Documents" }
   ]);
-  const [folders, setFolders]                 = useState<{ id: string; name: string }[]>([]);
-  const [attachments, setAttachments]         = useState<IAttachment[]>([]);
-  const [selectedIds, setSelectedIds]         = useState<string[]>([]);
-  const [newFolderName, setNewFolderName]     = useState<string>("");
-  const [suggestion, setSuggestion]           = useState<FolderNode | null>(null);
-  const [treeLoaded, setTreeLoaded] = useState(false);
-  const treeRef = useRef<FolderNode[]>([]);
-  
+  const [folders, setFolders]             = useState<{ id: string; name: string }[]>([]);
+  const [attachments, setAttachments]     = useState<IAttachment[]>([]);
+  const [selectedIds, setSelectedIds]     = useState<string[]>([]);
+  const [newFolderName, setNewFolderName] = useState<string>("");
+  const [suggestion, setSuggestion]       = useState<FolderNode | null>(null);
 
-  // Load subfolders under a parent
+  const treeRef = useRef<FolderNode[]>([]);
+  const [treeLoaded, setTreeLoaded]       = useState(false);
+
+  // Load subfolders
   const loadSubfolders = async (token: string, drive: string, parentId: string) => {
     const res = await fetch(
       `https://graph.microsoft.com/v1.0/drives/${drive}/items/${parentId}/children`,
@@ -66,21 +63,24 @@ const App: React.FC = () => {
     setFolders(subs);
   };
 
-  // Fetch complete folder tree (2 levels) and cache in treeRef
-
-  // Sign in and initialize SharePoint context
+  // Sign in & initialize
   const signInAndLoad = async () => {
     setError(null);
     setSuccess(null);
     try {
       const token = await getGraphToken();
       setGraphToken(token);
+
       const ids = await getSiteAndDrive(token);
       setSiteId(ids.siteId);
       setDriveId(ids.driveId);
+
+      // Build suggestion tree
       treeRef.current = await getDriveTree(token, ids.driveId);
       console.log("Drive tree fetched, nodes:", treeRef.current.length);
       setTreeLoaded(true);
+
+      // Initial UI browse
       await loadSubfolders(token, ids.driveId, "root");
       setIsSignedIn(true);
     } catch (e: any) {
@@ -89,13 +89,14 @@ const App: React.FC = () => {
     }
   };
 
-  // Toggle selection of an attachment
+  // Toggle attachment selection
   const toggleSelect = (id: string) => {
     setSelectedIds(prev =>
       prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
     );
   };
 
+  // Accept suggestion
   const acceptSuggestion = (node: FolderNode) => {
     const newPath = node.pathIds.map((id, idx) => ({
       id,
@@ -198,105 +199,95 @@ const App: React.FC = () => {
     }
   };
 
-  // On mount: load attachments
+  // Load attachments on pane open
   useEffect(() => {
-  Office.onReady(() => {
-    console.log("🛠️  File-saver pane Office.onReady fired");
+    Office.onReady(() => {
+      console.log("🛠️  File-saver pane Office.onReady fired");
+      (async () => {
+        try {
+          const atts = await getAttachments();
+          console.log("📎 Attachments loaded:", atts.length);
+          setAttachments(atts);
+          const initial = atts
+            .filter(a => !a.name.toLowerCase().includes("image"))
+            .map(a => a.id);
+          setSelectedIds(initial);
+        } catch (e: any) {
+          console.error("❌ Error loading attachments:", e);
+          setError("Kon bijlagen niet laden: " + e.message);
+        }
+      })();
+    });
+  }, []);
 
-    // Immediately invoked async function to load attachments
-    (async () => {
-      try {
-        const atts = await getAttachments();
-        console.log("📎 Attachments loaded:", atts.length);
-        setAttachments(atts);
+  // Suggestion effect
+  useEffect(() => {
+    console.log("🏷️  Suggestion effect 🔄", {
+      attachments: attachments.length,
+      selected:    selectedIds.length,
+      driveId,
+      treeLoaded,
+      treeSize:    treeRef.current.length
+    });
 
-        // Auto-select all non-image attachments
-        const initial = atts
-          .filter(a => !a.name.toLowerCase().includes("image"))
-          .map(a => a.id);
-        setSelectedIds(initial);
-      } catch (e: any) {
-        console.error("❌ Error loading attachments:", e);
-        setError("Kon bijlagen niet laden: " + e.message);
-      }
-    })();
-  });
-}, []);
+    if (!treeLoaded) {
+      console.log("❌ Tree not loaded, skipping suggestion");
+      setSuggestion(null);
+      return;
+    }
 
+    const first = attachments.find(a => selectedIds.includes(a.id));
+    if (!first) {
+      setSuggestion(null);
+      return;
+    }
 
- // Suggestion effect
-useEffect(() => {
-  console.log("🏷️  Suggestion effect 🔄", {
-    attachments: attachments.length,
-    selected:    selectedIds.length,
-    driveId,
-    treeLoaded,
-    treeSize:    treeRef.current.length
-  });
+    const filename = first.name.toLowerCase();
+    console.log("🔎 Matching for filename:", filename);
 
-  if (!treeLoaded) {
-    console.log("❌ Tree not loaded, skipping suggestion");
-    setSuggestion(null);
-    return;
-  }
+    const tokens = filename.split(/[^a-z0-9]+/).filter(Boolean);
+    console.log("🔑 Tokens:", tokens);
 
-  const firstAtt = attachments.find(a => selectedIds.includes(a.id));
-  if (!firstAtt) {
-    console.log("❌ No attachment selected");
-    setSuggestion(null);
-    return;
-  }
+    const prospects = treeRef.current.find(n => n.name === "Prospects");
+    if (!prospects) {
+      console.log("❌ No Prospects folder found");
+      setSuggestion(null);
+      return;
+    }
 
-  const filename = firstAtt.name.toLowerCase();
-  console.log("🔎 Matching for filename:", filename);
-
-  // Break filename into tokens
-  const tokens = filename.split(/[^a-z0-9]+/).filter(Boolean);
-  console.log("🔑 Tokens:", tokens);
-
-  // Find the Prospects root in the tree
-  const prospects = treeRef.current.find(n => n.name === "Prospects");
-  if (!prospects) {
-    console.log("❌ 'Prospects' folder not found in tree");
-    setSuggestion(null);
-    return;
-  }
-
-  // Build all contiguous substrings of tokens
-  const substrings: string[] = [];
-  for (let i = 0; i < tokens.length; i++) {
-    let accum = tokens[i];
-    substrings.push(accum);
-    for (let j = i + 1; j < tokens.length; j++) {
-      accum += " " + tokens[j];
+    // Build all contiguous substrings
+    const substrings: string[] = [];
+    for (let i = 0; i < tokens.length; i++) {
+      let accum = tokens[i];
       substrings.push(accum);
-    }
-  }
-
-  let bestMatch: FolderNode | null = null;
-  let bestLen = 0;
-
-  // Recursive search only within Prospects subtree
-  const searchNode = (node: FolderNode) => {
-    const fullPath = node.pathNames.join("/").toLowerCase();
-    for (const sub of substrings) {
-      if (fullPath.includes(sub) && sub.length > bestLen) {
-        bestLen = sub.length;
-        bestMatch = node;
+      for (let j = i + 1; j < tokens.length; j++) {
+        accum += " " + tokens[j];
+        substrings.push(accum);
       }
     }
-    node.children.forEach(searchNode);
-  };
-  searchNode(prospects);
 
-  if (bestMatch) {
-    console.log("✅ Best match:", bestMatch.pathNames.join("/"), "(length:", bestLen, ")");
-    setSuggestion(bestMatch);
-  } else {
-    console.log("🔄 No match found; falling back to Prospects");
-    setSuggestion(prospects);
-  }
-}, [attachments, selectedIds, driveId, treeLoaded]);
+    let bestMatch: FolderNode | null = null;
+    let bestLen = 0;
+    const searchNode = (node: FolderNode) => {
+      const fullPath = node.pathNames.join("/").toLowerCase();
+      for (const sub of substrings) {
+        if (fullPath.includes(sub) && sub.length > bestLen) {
+          bestLen = sub.length;
+          bestMatch = node;
+        }
+      }
+      node.children.forEach(searchNode);
+    };
+    searchNode(prospects);
+
+    if (bestMatch) {
+      console.log("✅ Best match:", bestMatch.pathNames.join("/"));
+      setSuggestion(bestMatch);
+    } else {
+      console.log("🔄 No match; default to Prospects");
+      setSuggestion(prospects);
+    }
+  }, [attachments, selectedIds, driveId, treeLoaded]);
 
   return (
     <div className={styles.root}>
@@ -314,7 +305,7 @@ useEffect(() => {
               className={styles.suggestion}
               onClick={() => acceptSuggestion(suggestion)}
             >
-              Save file here? <strong>{suggestion.pathNames.join('/')}</strong>
+              Save file here? <strong>{suggestion.pathNames.join("/")}</strong>
               <span
                 className={styles.dismiss}
                 onClick={() => setSuggestion(null)}
@@ -323,6 +314,7 @@ useEffect(() => {
               </span>
             </div>
           )}
+
           <div className={styles.breadcrumb}>
             {path.map((crumb, idx) => (
               <React.Fragment key={crumb.id}>
@@ -394,4 +386,4 @@ useEffect(() => {
   );
 };
 
-export default App
+export default App;

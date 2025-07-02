@@ -238,15 +238,47 @@ useEffect(() => {
     }
   }
 
-  // 4) Choose if above threshold, else fallback to nested Prospects
+  // 5) If we found a good Prospects match, take it…
   const threshold = 0.4;
-  const chosen = best && bestScore >= threshold
-    ? best
-    : nestedProspects;
+  if (best && bestScore >= threshold) {
+    console.log(`🎯 Suggestion (Prospects): ${best.pathNames.join(" / ")} (score=${bestScore.toFixed(2)})`);
+    setSuggestion(best);
+    return;
+  }
 
-  console.log(`🎯 Suggestion: ${chosen.pathNames.join(" / ")} (score=${bestScore.toFixed(2)})`);
-  setSuggestion(chosen);
+  // ── No strong Prospects match? Try SCF→Participaties candidates ──
+  console.log("💡 No Prospects ≥40%, trying SCF Participaties…");
+  let scfBest: FolderNode | null = null;
+  let scfScore = 0;
 
+  // find every SCF Participaties node in the tree
+  const scfNodes = tree!.filter(n =>
+    n.pathNames.length >= 3 && /^SCF /.test(n.pathNames[2]) && n.name === "Participaties"
+  );
+  for (const partNode of scfNodes) {
+    for (const cand of partNode.children) {
+      const tokens = cand.name.split(/[\s\-()]+/).filter(Boolean);
+      if (!tokens.length) continue;
+      const matches = tokens.reduce((cnt, tok) =>
+        fileName.toLowerCase().includes(tok.toLowerCase()) ? cnt + 1 : cnt
+      , 0);
+      const score = matches / tokens.length;
+      console.log(`   📂 [SCF] ${cand.pathNames.join(" / ")} → score ${score.toFixed(2)}`);
+      if (score > scfScore) {
+        scfScore = score;
+        scfBest  = cand;
+      }
+    }
+  }
+
+  if (scfBest && scfScore >= threshold) {
+    console.log(`🎯 Suggestion (SCF): ${scfBest.pathNames.join(" / ")} (score=${scfScore.toFixed(2)})`);
+    setSuggestion(scfBest);
+  } else {
+    // fallback to the nested Prospects folder itself
+    console.log("⚠️ No SCF ≥40%, falling back to nested Prospects");
+    setSuggestion(nestedProspects);
+  }
 }, [treeLoaded, attachments, selectedIds]);
 
 

@@ -178,6 +178,44 @@ export async function getDriveTree(token: string, driveId: string): Promise<Fold
             driveId, baseIds, baseNames, headers, 0
           );
           nodes.push(subtree);
+
+
+        // ← New SCF* folders: pull in SCF III/IV/V/VI → Participaties → children
+        } else if (/^SCF /.test(sharedChild.name)) {
+          // fetch children of SCF N
+          const scfRes = await fetch(
+            `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${sharedChild.id}/children?$select=id,name,folder`,
+            { headers }
+          );
+          const scfJson = await scfRes.json();
+          // find the “Participaties” folder
+          const part = scfJson.value.find((i: any) => i.folder && i.name === "Participaties");
+          if (part) {
+            // fetch its immediate children
+            const childrenRes = await fetch(
+              `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${part.id}/children?$select=id,name,folder`,
+              { headers }
+            );
+            const childrenJson = await childrenRes.json();
+            // build a node representing SCF → Participaties
+            nodes.push({
+              id:        part.id,
+              name:      "Participaties",
+              children:  childrenJson.value.filter((i: any) => i.folder).map((c: any) => ({
+                id:        c.id,
+                name:      c.name,
+                children:  [],
+                pathIds:   [...baseIds, part.id, c.id],
+                pathNames: [...baseNames, "Participaties", c.name],
+                path:      [...baseNames, "Participaties", c.name].join(" / ")
+              })),
+              pathIds:   [...baseIds, part.id],
+              pathNames: [...baseNames, "Participaties"],
+              path:      [...baseNames, "Participaties"].join(" / ")
+            });
+          }
+
+
         } else {
           nodes.push({
             id:        sharedChild.id,

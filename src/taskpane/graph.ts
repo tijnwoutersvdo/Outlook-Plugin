@@ -41,7 +41,7 @@ export async function createContact(token: string, info: ContactInfo): Promise<v
 }
 
 /**
- * A node in our folder‐tree:
+ * A node in our folder‐tree for suggestions.
  */
 export interface FolderNode {
   id:        string;
@@ -72,31 +72,27 @@ export async function getSiteAndDrive(token: string): Promise<{ siteId: string; 
   const siteJson = await siteRes.json();
   const siteId   = siteJson.id;
 
-  // 2) Fetch its drives
-  const drivesRes = await fetch(
-    `https://graph.microsoft.com/v1.0/sites/${siteId}/drives`,
+  // 2) Fetch its default drive
+  const driveRes = await fetch(
+    `https://graph.microsoft.com/v1.0/sites/${siteId}/drive`,
     { headers }
   );
-  if (!drivesRes.ok) {
-    throw new Error(`getSiteAndDrive: drives lookup failed ${drivesRes.status}`);
+  if (!driveRes.ok) {
+    throw new Error(`getSiteAndDrive: default drive lookup failed ${driveRes.status}`);
   }
-  const drivesJson = await drivesRes.json();
+  const driveJson = await driveRes.json();
+  const driveId   = driveJson.id;
 
-  // 3) Pick the default “Documents” library
-  const drive = drivesJson.value[0];
-  if (!drive) {
-    throw new Error(`getSiteAndDrive: no drives found`);
-  }
-
-  return { siteId, driveId: drive.id };
+  return { siteId, driveId };
 }
-
 
 /**
  * Recursively fetch the subtree under “Prospects” up to 2 levels deep.
+ * Always uses the original driveId for its children lookups.
  */
 async function loadProspectsSubtree(
   itemId:    string,
+  driveId:   string,
   pathIds:   string[],
   pathNames: string[],
   headers:   Record<string,string>,
@@ -114,9 +110,9 @@ async function loadProspectsSubtree(
     };
   }
 
-  // fetch this folder’s children
+  // fetch this folder’s children using the correct driveId
   const childrenRes = await fetch(
-    `https://graph.microsoft.com/v1.0/drives/${pathIds[1]}/items/${itemId}/children?$select=id,name,folder`,
+    `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${itemId}/children?$select=id,name,folder`,
     { headers }
   );
   if (!childrenRes.ok) {
@@ -129,9 +125,9 @@ async function loadProspectsSubtree(
     const childIds   = [...pathIds, child.id];
     const childNames = [...pathNames, child.name];
 
-    // recurse deeper if STILL “Prospects” or its descendants
+    // recurse deeper under Prospects
     const node = await loadProspectsSubtree(
-      child.id, childIds, childNames, headers, depth + 1
+      child.id, driveId, childIds, childNames, headers, depth + 1
     );
     children.push(node);
   }
@@ -147,16 +143,15 @@ async function loadProspectsSubtree(
 }
 
 /**
- * Build the full tree for suggestions:
- *  • Fetch root‐level children of the drive.
- *  • If we see the special “Shared” folder, drill into it and use *its* direct children
- *    as the base nodes for suggestions (so we can FIND Prospects under Shared).
- *  • Under Prospects, recurse two levels deep.
+ * Build the full tree for folder‐suggestions:
+ *  • Fetch root‐level folders of the drive.
+ *  • If we see “Shared”, drill into it and treat *its* children as our base set.
+ *  • Under “Prospects”, recurse two levels deep.
  */
 export async function getDriveTree(token: string, driveId: string): Promise<FolderNode[]> {
   const headers = { Authorization: `Bearer ${token}` };
 
-  // 1) Get root‐level folders
+  // 1) Get root‐level child items
   const rootRes = await fetch(
     `https://graph.microsoft.com/v1.0/drives/${driveId}/root/children?$select=id,name,folder`,
     { headers }
@@ -169,9 +164,8 @@ export async function getDriveTree(token: string, driveId: string): Promise<Fold
   const nodes: FolderNode[] = [];
 
   for (const item of rootJson.value.filter((i: any) => i.folder)) {
-    // Special case: if the library’s name is “Shared”, drill one level deeper
+    // Special case: if the library’s first child is “Shared”, drill into it
     if (item.name === "Shared") {
-      // fetch Shared’s children
       const sharedRes = await fetch(
         `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${item.id}/children?$select=id,name,folder`,
         { headers }
@@ -186,9 +180,9 @@ export async function getDriveTree(token: string, driveId: string): Promise<Fold
         const baseNames = [ "Shared Documents", item.name, sharedChild.name ];
 
         if (sharedChild.name === "Prospects") {
-          // 2‐level deep under Prospects
+          // Two‐level deep under Prospects
           const prospectsNode = await loadProspectsSubtree(
-            sharedChild.id, baseIds, baseNames, headers, 0
+            sharedChild.id, driveId, baseIds, baseNames, headers, 0
           );
           nodes.push(prospectsNode);
         } else {
@@ -203,16 +197,16 @@ export async function getDriveTree(token: string, driveId: string): Promise<Fold
         }
       }
     }
-    // If somebody created a top‐level “Prospects” folder (not under Shared), handle that too:
+    // Also handle a top‐level “Prospects” folder if someone placed it there
     else if (item.name === "Prospects") {
       const baseIds   = [ "root", item.id ];
       const baseNames = [ "Shared Documents", item.name ];
       const prospectsNode = await loadProspectsSubtree(
-        item.id, baseIds, baseNames, headers, 0
+        item.id, driveId, baseIds, baseNames, headers, 0
       );
       nodes.push(prospectsNode);
     }
-    // All other root folders we ignore for suggestions
+    // ignore all other root folders for suggestion purposes
   }
 
   return nodes;

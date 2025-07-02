@@ -241,7 +241,7 @@ useEffect(() => {
   }
 
   // 5) If we found a good Prospects match, take it…
-  const threshold = 0.51;
+  const threshold = 0.6;
   if (best && bestScore >= threshold) {
     console.log(`🎯 Suggestion (Prospects): ${best.pathNames.join(" / ")} (score=${bestScore.toFixed(2)})`);
     setSuggestion(best);
@@ -249,7 +249,7 @@ useEffect(() => {
   }
 
   // ── No strong Prospects match? Try SCF→Participaties candidates ──
-  console.log("💡 No Prospects ≥51%, trying SCF Participaties…");
+  console.log("💡 No Prospects ≥60%, trying SCF Participaties…");
   let scfBest: FolderNode | null = null;
   let scfScore = 0;
 
@@ -278,7 +278,7 @@ useEffect(() => {
     setSuggestion(scfBest);
   } else {
     // fallback to the nested Prospects folder itself
-    console.log("⚠️ No SCF ≥51%, falling back to nested Prospects");
+    console.log("⚠️ No SCF ≥60%, falling back to nested Prospects");
     setSuggestion(nestedProspects);
   }
 }, [treeLoaded, attachments, selectedIds]);

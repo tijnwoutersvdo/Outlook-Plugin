@@ -6,7 +6,7 @@
 
   <!-- ── Basic Info ─────────────────────────────────────────────────── -->
   <Id>9a952895-5132-4ba7-a989-b7dce20ea6f0</Id>
-  <Version>1.0.1.10</Version>        <!-- bumped so OWA picks up this change -->
+  <Version>1.0.1.11</Version>
   <ProviderName>Synergia TW</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
   <DisplayName DefaultValue="Synergia File Saver"/>
@@ -17,7 +17,7 @@
   <HighResolutionIconUrl DefaultValue="https://tijnwoutersvdo.github.io/Outlook-Plugin/assets/icon-128.png"/>
   <SupportUrl           DefaultValue="https://www.synergia.nl/help"/>
 
-  <!-- ── Whitelisted External Domains ──────────────────────────────── -->
+  <!-- ── Whitelisted Domains ────────────────────────────────────────── -->
   <AppDomains>
     <AppDomain>https://appsforoffice.microsoft.com</AppDomain>
     <AppDomain>https://login.microsoftonline.com</AppDomain>
@@ -31,7 +31,8 @@
   </Hosts>
   <Requirements>
     <Sets>
-      <Set Name="Mailbox" MinVersion="1.10"/>
+      <!-- REVERTED to 1.8 so both validator and OWA accept it -->
+      <Set Name="Mailbox" MinVersion="1.8"/>
     </Sets>
   </Requirements>
 
@@ -48,42 +49,35 @@
   <Permissions>ReadWriteItem</Permissions>
   <Rule xsi:type="ItemIs" ItemType="Message" FormType="Read"/>
 
-  <!-- ═════════════════════════ VersionOverrides ═════════════════════════ -->
+  <!-- ═════════════════ VersionOverrides ══════════════════════════════ -->
   <VersionOverrides xmlns="http://schemas.microsoft.com/office/mailappversionoverrides"
                     xsi:type="VersionOverridesV1_0">
     <VersionOverrides xmlns="http://schemas.microsoft.com/office/mailappversionoverrides/1.1"
                       xsi:type="VersionOverridesV1_1">
 
-      <!-- 1) API-sets (must use DefaultMinVersion inside VersionOverrides) -->
+      <!-- 1) API-sets -->
       <Requirements>
-        <bt:Sets DefaultMinVersion="1.10">
+        <!-- also set DefaultMinVersion to 1.8 -->
+        <bt:Sets DefaultMinVersion="1.8">
           <bt:Set Name="Mailbox"/>
         </bt:Sets>
-      </Requirements>                                                           :contentReference[oaicite:0]{index=0}
+      </Requirements>
 
-      <!-- 2) Ribbon + OnMessageOpen command -->
+      <!-- 2) Ribbon UI ONLY (no OnMessageOpen) -->
       <Hosts>
         <Host xsi:type="MailHost">
           <DesktopFormFactor>
-
-            <!-- Function file for both commands and UI points -->
             <FunctionFile resid="CommandFunctionFile.Url"/>
 
-            <!-- Automatic “on open” handler for Extract Contact -->
-            <ExtensionPoint xsi:type="OnMessageOpen">
-              <SourceLocation resid="CommandFunctionFile.Url"/>
-              <FunctionName>onMessageOpenHandler</FunctionName>
-            </ExtensionPoint>                                        :contentReference[oaicite:1]{index=1}
-
-            <!-- The existing ribbon buttons -->
+            <!-- Message-read ribbon buttons -->
             <ExtensionPoint xsi:type="MessageReadCommandSurface">
               <OfficeTab id="TabDefault">
                 <Group id="FileSaverGroup">
                   <Label resid="GroupLabel"/>
 
-                  <!-- Open File Saver pane -->
+                  <!-- Open File Saver -->
                   <Control xsi:type="Button" id="OpenPaneBtn">
-                    <Label resid="PaneButton.Label"/>
+                    <Label    resid="PaneButton.Label"/>
                     <Supertip>
                       <Title       resid="PaneButton.Label"/>
                       <Description resid="PaneButton.Tooltip"/>
@@ -98,9 +92,9 @@
                     </Action>
                   </Control>
 
-                  <!-- Extract & Edit Contact button -->
+                  <!-- Extract & Edit Contact -->
                   <Control xsi:type="Button" id="ExtractContactButton">
-                    <Label resid="ExtractButton.Label"/>
+                    <Label    resid="ExtractButton.Label"/>
                     <Supertip>
                       <Title       resid="ExtractButton.Label"/>
                       <Description resid="ExtractButton.Tooltip"/>
@@ -163,5 +157,4 @@
     </VersionOverrides>
   </VersionOverrides>
 </OfficeApp>
-
 

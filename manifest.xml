@@ -6,7 +6,7 @@
 
   <!-- ── Basis ─────────────────────────────────────────────────── -->
   <Id>9a952895-5132-4ba7-a989-b7dce20ea6f0</Id>
-  <Version>1.0.1.7</Version>
+  <Version>1.0.1.8</Version>
   <ProviderName>Synergia TW</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
   <DisplayName DefaultValue="Synergia File Saver"/>
@@ -30,8 +30,8 @@
     <Host Name="Mailbox"/>
   </Hosts>
   <Requirements>
-    <Sets>
-      <Set Name="Mailbox" MinVersion="1.10"/>
+    <Sets DefaultMinVersion="1.3">
+      <Set Name="Mailbox"/>
     </Sets>
   </Requirements>
 
@@ -48,30 +48,31 @@
   <Permissions>ReadWriteItem</Permissions>
   <Rule xsi:type="ItemIs" ItemType="Message" FormType="Read"/>
 
+  <!-- ═════════════════════════════════ VersionOverrides ═════════════════════════════════ -->
   <VersionOverrides xmlns="http://schemas.microsoft.com/office/mailappversionoverrides"
                     xsi:type="VersionOverridesV1_1">
 
     <!-- 1) API-sets -->
     <Requirements>
-      <bt:Sets>
-        <bt:Set Name="Mailbox" MinVersion="1.10"/>
+      <bt:Sets DefaultMinVersion="1.3">
+        <bt:Set Name="Mailbox"/>
       </bt:Sets>
     </Requirements>
 
-    <!-- 2) Ribbon UI + event handlers -->
+    <!-- 2) Ribbon UI + OnMessageOpen handler -->
     <Hosts>
       <Host xsi:type="MailHost">
         <DesktopFormFactor>
 
-          <!-- THIS is your single FunctionFile for all handlers -->
+          <!-- all handlers live in commands.html -->
           <FunctionFile resid="CommandFunctionFile.Url"/>
 
-          <!-- on-open auto-handler -->
+          <!-- automatically run on message open -->
           <ExtensionPoint xsi:type="OnMessageOpen">
             <FunctionName>onMessageOpenHandler</FunctionName>
           </ExtensionPoint>
 
-          <!-- the ribbon buttons -->
+          <!-- existing ribbon taskpane buttons -->
           <ExtensionPoint xsi:type="MessageReadCommandSurface">
             <OfficeTab id="TabDefault">
               <Group id="FileSaverGroup">
@@ -94,7 +95,7 @@
                   </Action>
                 </Control>
 
-                <!-- Extract / Edit Contact -->
+                <!-- Extract & Edit Contact -->
                 <Control xsi:type="Button" id="ExtractContactButton">
                   <Label resid="ExtractButton.Label"/>
                   <Supertip>
@@ -127,9 +128,9 @@
         <bt:Image id="Icon80" DefaultValue="https://tijnwoutersvdo.github.io/Outlook-Plugin/assets/icon-80.png"/>
       </bt:Images>
       <bt:Urls>
-        <bt:Url id="Taskpane.Url"               DefaultValue="https://tijnwoutersvdo.github.io/Outlook-Plugin/taskpane.html"/>
-        <bt:Url id="Taskpane.UrlContact"        DefaultValue="https://tijnwoutersvdo.github.io/Outlook-Plugin/taskpane.html?mode=contact"/>
-        <bt:Url id="CommandFunctionFile.Url"    DefaultValue="https://tijnwoutersvdo.github.io/Outlook-Plugin/commands.html"/>
+        <bt:Url id="Taskpane.Url"             DefaultValue="https://tijnwoutersvdo.github.io/Outlook-Plugin/taskpane.html"/>
+        <bt:Url id="Taskpane.UrlContact"      DefaultValue="https://tijnwoutersvdo.github.io/Outlook-Plugin/taskpane.html?mode=contact"/>
+        <bt:Url id="CommandFunctionFile.Url"  DefaultValue="https://tijnwoutersvdo.github.io/Outlook-Plugin/commands.html"/>
       </bt:Urls>
       <bt:ShortStrings>
         <bt:String id="GroupLabel"          DefaultValue="Synergia File Saver"/>
@@ -158,4 +159,5 @@
 
   </VersionOverrides>
 </OfficeApp>
+
 

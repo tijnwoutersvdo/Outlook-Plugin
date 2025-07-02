@@ -1,5 +1,6 @@
 /* eslint-disable no-undef */
 
+const path = require("path");
 const devCerts = require("office-addin-dev-certs");
 const CopyWebpackPlugin = require("copy-webpack-plugin");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
@@ -15,7 +16,8 @@ async function getHttpsOptions() {
 
 module.exports = async (env, options) => {
   const dev = options.mode === "development";
-  const config = {
+
+  return {
     devtool: "source-map",
     entry: {
       polyfill: ["core-js/stable", "regenerator-runtime/runtime"],
@@ -26,12 +28,18 @@ module.exports = async (env, options) => {
       },
       commands: "./src/commands/commands.ts",
     },
+
+    // ── Build everything into `docs/` for GitHub Pages ─────────────
     output: {
+      path: path.resolve(__dirname, "docs"),
+      filename: "[name].js",
       clean: true,
     },
+
     resolve: {
       extensions: [".ts", ".tsx", ".html", ".js"],
     },
+
     module: {
       rules: [
         {
@@ -60,6 +68,7 @@ module.exports = async (env, options) => {
         },
       ],
     },
+
     plugins: [
       new HtmlWebpackPlugin({
         filename: "taskpane.html",
@@ -74,13 +83,11 @@ module.exports = async (env, options) => {
           },
           {
             from: "manifest*.xml",
-            to: "[name]" + "[ext]",
+            to: "[name][ext]",
             transform(content) {
-              if (dev) {
-                return content;
-              } else {
-                return content.toString().replace(new RegExp(urlDev, "g"), urlProd);
-              }
+              return dev
+                ? content
+                : content.toString().replace(new RegExp(urlDev, "g"), urlProd);
             },
           },
         ],
@@ -94,18 +101,22 @@ module.exports = async (env, options) => {
         Promise: ["es6-promise", "Promise"],
       }),
     ],
+
     devServer: {
+      // serve from the same `docs/` dir in dev
+      static: { directory: path.resolve(__dirname, "docs") },
       hot: true,
       headers: {
         "Access-Control-Allow-Origin": "*",
       },
       server: {
         type: "https",
-        options: env.WEBPACK_BUILD || options.https !== undefined ? options.https : await getHttpsOptions(),
+        options:
+          env.WEBPACK_BUILD || options.https !== undefined
+            ? options.https
+            : await getHttpsOptions(),
       },
       port: process.env.npm_package_config_dev_server_port || 3000,
     },
   };
-
-  return config;
 };

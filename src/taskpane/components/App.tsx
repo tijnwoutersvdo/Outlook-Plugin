@@ -219,8 +219,10 @@ useEffect(() => {
   let bestScore = 0;
 
   for (const candidate of nestedProspects.children) {
-    // split folder name on non-word chars
-    const tokens = candidate.name.split(/[\s\-()]+/).filter(Boolean);
+    // split folder name on non-word chars but drop numeric-only tokens
+    const tokens = candidate.name
+      .split(/[\s\-()]+/)
+      .filter(tok => tok && !/^\d+$/.test(tok));
     if (!tokens.length) continue;
 
     // count how many tokens appear in fileName

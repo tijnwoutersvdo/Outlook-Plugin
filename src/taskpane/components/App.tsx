@@ -75,19 +75,33 @@ const App: React.FC = () => {
       setSiteId(ids.siteId);
       setDriveId(ids.driveId);
 
-      const fullTree = await getDriveTree(token, ids.driveId);
-      console.log("✅ Drive tree loaded", fullTree);
-      setTree(fullTree);
-      setTreeLoaded(true);
-
-      // load the root children
-      await loadSubfolders(token, ids.driveId, "root");
+      // ✅ only authenticate for now; defer folder-tree loading to a background effect
       setIsSignedIn(true);
     } catch (e: any) {
       console.error(e);
       setError("Inloggen of laden mislukt: " + e.message);
     }
   };
+
+  // ── Background tree-loading after sign-in ────────────────────────────
+  useEffect(() => {
+    if (!isSignedIn || !driveId || !graphToken) return;
+    (async () => {
+      try {
+        // fetch full folder tree
+        const fullTree = await getDriveTree(graphToken, driveId);
+        console.log("✅ Drive tree loaded", fullTree);
+        setTree(fullTree);
+        setTreeLoaded(true);
+
+        // load root children for immediate browsing
+        await loadSubfolders(graphToken, driveId, "root");
+      } catch (err: any) {
+        console.error("🌲 Tree load failed:", err);
+        setError("Mappen laden mislukt: " + err.message);
+      }
+    })();
+  }, [isSignedIn, driveId, graphToken]);
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev =>

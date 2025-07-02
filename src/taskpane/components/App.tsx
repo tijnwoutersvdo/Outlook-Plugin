@@ -2,7 +2,7 @@ import * as React from "react";
 import { useEffect, useState } from "react";
 import { makeStyles } from "@fluentui/react-components";
 import { getGraphToken } from "../authConfig";
-import { getSiteAndDrive } from "../graph";
+import { getSiteAndDrive, getDriveTree, FolderNode } from "../graph";
 import { getAttachments, IAttachment } from "../taskpane";
 import { ContactForm } from "./ContactForm";
 
@@ -17,6 +17,8 @@ const useStyles = makeStyles({
   button:      { padding: "8px 16px", fontSize: "1rem", cursor: "pointer", marginTop: "8px" },
   error:       { color: "red", marginBottom: "16px" },
   success:     { color: "green", marginBottom: "16px" },
+  suggestion:  { padding: "8px", backgroundColor:"#eef6fc", borderRadius: "4px", marginBottom: "8px", cursor: "pointer"},
+  dismiss:     { marginLeft: "12px", fontWeight: "bold", cursor: "pointer"},
 });
 
 const App: React.FC = () => {
@@ -42,6 +44,9 @@ const App: React.FC = () => {
   const [attachments, setAttachments]     = useState<IAttachment[]>([]);
   const [selectedIds, setSelectedIds]     = useState<string[]>([]);
   const [newFolderName, setNewFolderName] = useState<string>("");
+  const [tree, setTree]             = useState<FolderNode[] | null>(null);
+  const [treeLoaded, setTreeLoaded] = useState(false);
+  const [suggestion, setSuggestion] = useState<FolderNode | null>(null);
 
   // load children for a given folder
   const loadSubfolders = async (token: string, drive: string, parentId: string) => {
@@ -68,6 +73,11 @@ const App: React.FC = () => {
       const ids = await getSiteAndDrive(token);
       setSiteId(ids.siteId);
       setDriveId(ids.driveId);
+
+      const fullTree = await getDriveTree(token, ids.driveId);
+      console.log("✅ Drive tree loaded", fullTree);
+      setTree(fullTree);
+      setTreeLoaded(true);
 
       // load the root children
       await loadSubfolders(token, ids.driveId, "root");
@@ -176,6 +186,39 @@ const App: React.FC = () => {
     });
   }, []);
 
+  useEffect(() => {
+  if (!treeLoaded || !attachments.length || !selectedIds.length) {
+    console.log("❌ Tree not loaded or nothing selected, skipping suggestion");
+    setSuggestion(null);
+    return;
+  }
+
+  const firstAtt = attachments.find(a => selectedIds.includes(a.id))!;
+  console.log("🏷️ Suggestion effect:", {
+    fileName:   firstAtt.name,
+    treeLoaded,
+    tree
+  });
+
+  // 1) find the “Prospects” folder in your tree
+  const prospects = tree!.find(n => n.name === "Prospects");
+  if (!prospects) {
+    console.warn("⚠️ Could not find ‘Prospects’ node in tree");
+    setSuggestion(null);
+    return;
+  }
+
+  // 2) see if any child-folder name appears in the file name
+  const match = prospects.children.find(c =>
+    firstAtt.name.toLowerCase().includes(c.name.toLowerCase())
+  );
+
+  const chosen = match || prospects;  // fallback
+  console.log("🎯 Suggestion:", chosen.pathNames.join(" / "));
+  setSuggestion(chosen);
+
+}, [treeLoaded, attachments, selectedIds]);
+
   return (
     <div className={styles.root}>
       {error   && <div className={styles.error}>{error}</div>}
@@ -186,6 +229,23 @@ const App: React.FC = () => {
             Sign in to SharePoint
           </button>
         : <>
+        {suggestion && (
+          <div className={styles.suggestion}
+              onClick={() => {
+                // navigate into the suggested folder
+                setPath(
+                  suggestion.pathIds.map((id,i) => ({ id, name: suggestion.pathNames[i] }))
+                );
+                loadSubfolders(graphToken!, driveId!, suggestion.pathIds.slice(-1)[0]);
+                setSuggestion(null);
+              }}>
+            Save file here?{" "}
+            <strong>{suggestion.pathNames.join(" / ")}</strong>
+            <span className={styles.dismiss}
+                  onClick={() => setSuggestion(null)}>×</span>
+          </div>
+        )}
+
             <div className={styles.breadcrumb}>
               {path.map((crumb, idx) => (
                 <React.Fragment key={crumb.id}>

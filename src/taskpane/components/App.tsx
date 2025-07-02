@@ -24,6 +24,7 @@ const useStyles = makeStyles({
 });
 
 const App: React.FC = () => {
+  console.log("🚀 App component rendered");
   const styles = useStyles();
 
   // If mode=contact, render the ContactForm
@@ -199,19 +200,29 @@ const App: React.FC = () => {
 
   // On mount: load attachments
   useEffect(() => {
-    Office.onReady().then(async () => {
+  Office.onReady(() => {
+    console.log("🛠️  File-saver pane Office.onReady fired");
+
+    // Immediately invoked async function to load attachments
+    (async () => {
       try {
         const atts = await getAttachments();
+        console.log("📎 Attachments loaded:", atts.length);
         setAttachments(atts);
+
+        // Auto-select all non-image attachments
         const initial = atts
           .filter(a => !a.name.toLowerCase().includes("image"))
           .map(a => a.id);
         setSelectedIds(initial);
       } catch (e: any) {
+        console.error("❌ Error loading attachments:", e);
         setError("Kon bijlagen niet laden: " + e.message);
       }
-    });
-  }, []);
+    })();
+  });
+}, []);
+
 
  // Suggestion effect
 useEffect(() => {

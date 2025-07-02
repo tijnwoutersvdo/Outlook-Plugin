@@ -1,145 +1,164 @@
+// File: src/graph.ts
+
+// ——————————————————————————————————————————————————————————————————————————————————
+// Site & Drive lookup
+// ——————————————————————————————————————————————————————————————————————————————————
+export interface SiteAndDrive {
+  siteId:  string;
+  driveId: string;
+}
+
 /**
- * Haalt via Microsoft Graph de siteId en driveId op voor de SharePoint-site.
- * @param token Bearer access token voor Microsoft Graph
- * @returns Promise met { siteId, driveId }
+ * Given a Graph access token, returns the SharePoint siteId and
+ * the driveId for 'Shared Documents' (the default Documents library).
  */
-export async function getSiteAndDrive(token: string): Promise<{ siteId: string; driveId: string }> {
-  const headers = {
-    Authorization: `Bearer ${token}`,
-    "Content-Type": "application/json",
-  };
+export async function getSiteAndDrive(token: string): Promise<SiteAndDrive> {
+  const headers = { Authorization: `Bearer ${token}` };
 
-  // 1) Site ophalen via pad '/sites/Data'
-  const siteRes = await fetch(
-    "https://graph.microsoft.com/v1.0/sites/synergiacapital.sharepoint.com:/sites/Data",
-    { headers }
-  );
+  // 1) Lookup the root SharePoint site
+  const siteRes = await fetch("https://graph.microsoft.com/v1.0/sites/root", { headers });
   if (!siteRes.ok) {
-    throw new Error(`Fout bij ophalen site: ${siteRes.status} ${siteRes.statusText}`);
+    throw new Error(`getSiteAndDrive: site lookup failed ${siteRes.status}`);
   }
-  const siteData = await siteRes.json();
-  const siteId: string = siteData.id;
+  const siteJson = await siteRes.json();
+  const siteId   = siteJson.id;
 
-  // 2) Drive (documentbibliotheek) ophalen voor deze site
-  const driveRes = await fetch(
-    `https://graph.microsoft.com/v1.0/sites/${siteId}/drive`,
+  // 2) Enumerate document libraries (drives) under that site
+  const drivesRes = await fetch(
+    `https://graph.microsoft.com/v1.0/sites/${siteId}/drives`,
     { headers }
   );
-  if (!driveRes.ok) {
-    throw new Error(`Fout bij ophalen drive: ${driveRes.status} ${driveRes.statusText}`);
+  if (!drivesRes.ok) {
+    throw new Error(`getSiteAndDrive: drives lookup failed ${drivesRes.status}`);
   }
-  const driveData = await driveRes.json();
-  const driveId: string = driveData.id;
+  const drivesJson = await drivesRes.json();
 
-  return { siteId, driveId };
-}
-
-export interface ContactInfo {
-  name:         string;
-  email:        string;
-  phone:        string;
-  organization: string;
-  postcode:     string;
-}
-
-export async function createContact(token: string, info: ContactInfo): Promise<void> {
-  const headers = {
-    Authorization: `Bearer ${token}`,
-    "Content-Type":  "application/json"
-  };
-
-  const body = {
-    givenName:       info.name,
-    emailAddresses: [{ address: info.email, name: info.name }],
-    businessPhones:  [ info.phone ],
-    companyName:     info.organization,
-    homeAddress:    { postalCode: info.postcode }
-  };
-
-  const res = await fetch("https://graph.microsoft.com/v1.0/me/contacts", {
-    method:  "POST",
-    headers,
-    body:    JSON.stringify(body)
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Contacts.Create faalde: ${res.status} ${text}`);
+  // 3) Find the Documents library ("Shared Documents")
+  const docDrive = drivesJson.value.find((d: any) =>
+    d.name === "Documents" || d.name === "Shared Documents"
+  );
+  if (!docDrive) {
+    throw new Error("getSiteAndDrive: 'Shared Documents' drive not found");
   }
+
+  return { siteId, driveId: docDrive.id };
 }
 
+// ——————————————————————————————————————————————————————————————————————————————————
+// Folder tree and FolderNode
+// ——————————————————————————————————————————————————————————————————————————————————
 export interface FolderNode {
-  id: string;
-  name: string;
-  children: FolderNode[];
-  pathIds: string[];
-  pathNames: string[];
-  path: string;
+  id:         string;
+  name:       string;
+  children:   FolderNode[];
+  pathIds:    string[];
+  pathNames:  string[];
+  path:       string;
 }
 
 /**
- * Haalt de mappenboom (root + 2 niveaus) op en retourneert deze als array.
+ * Fetch only the first-level children of the drive’s root,
+ * then for “Prospects” fetch two levels deep so your suggestion
+ * algorithm has enough data.
  */
 export async function getDriveTree(token: string, driveId: string): Promise<FolderNode[]> {
   const headers = { Authorization: `Bearer ${token}` };
-  const res = await fetch(
-    `https://graph.microsoft.com/v1.0/drives/${driveId}/root?$select=id,name&$expand=children($expand=children;$select=id,name,folder)`,
+
+  // ── Fetch the root children (only folders) ───────────────────────────
+  const rootRes = await fetch(
+    `https://graph.microsoft.com/v1.0/drives/${driveId}/root/children?$select=id,name,folder`,
     { headers }
   );
-  if (!res.ok) throw new Error(`Tree root failed: ${res.status}`);
-  const data = await res.json();
+  if (!rootRes.ok) {
+    throw new Error(`getDriveTree: root fetch failed ${rootRes.status}`);
+  }
+  const rootJson = await rootRes.json();
 
-  const toNode = (item: any, ids: string[], names: string[]): FolderNode => ({
-    id: item.id,
-    name: item.name,
-    children: (item.children || [])
-      .filter((c: any) => c.folder)
-      .map((c: any) => toNode(c, [...ids, c.id], [...names, c.name])),
-    pathIds: ids,
-    pathNames: names,
-    path: names.join(" / "),
-  });
-
-  const loadAll = async (
-    itemId: string,
-    ids: string[],
-    names: string[]
-  ): Promise<FolderNode> => {
-    const childRes = await fetch(
-      `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${itemId}/children?$select=id,name,folder`,
-      { headers }
-    );
-    if (!childRes.ok) throw new Error(`Tree branch failed: ${childRes.status}`);
-    const childData = await childRes.json();
-    const folders = childData.value.filter((c: any) => c.folder);
-    const children = await Promise.all(
-      folders.map((c: any) =>
-        loadAll(c.id, [...ids, c.id], [...names, c.name])
-      )
-    );
-    return {
-      id: itemId,
-      name: names[names.length - 1],
-      children,
-      pathIds: ids,
-      pathNames: names,
-      path: names.join(" / "),
-    };
-  };
-
-  const rootChildren = (data.children || []).filter((i: any) => i.folder);
-
+  // Map each top-level folder into a FolderNode
   const nodes: FolderNode[] = [];
-  for (const item of rootChildren) {
+  for (const item of rootJson.value.filter((i: any) => i.folder)) {
+    const baseIds   = ["root", item.id];
+    const baseNames = ["Shared Documents", item.name];
+    const basePath  = baseNames.join(" / ");
+
     if (item.name === "Prospects") {
-      nodes.push(
-        await loadAll(item.id, ["root", item.id], ["Shared Documents", item.name])
+      // Under Prospects: load two levels deep
+      const prospectsNode = await loadProspectsSubtree(
+        item.id,
+        baseIds,
+        baseNames,
+        headers,
+        /*depth=*/0
       );
+      nodes.push(prospectsNode);
     } else {
-      nodes.push(
-        toNode(item, ["root", item.id], ["Shared Documents", item.name])
-      );
+      // Other folders: no children
+      nodes.push({
+        id:        item.id,
+        name:      item.name,
+        children:  [],
+        pathIds:   baseIds,
+        pathNames: baseNames,
+        path:      basePath
+      });
     }
   }
+
   return nodes;
+}
+
+/**
+ * Recursively fetches children under Prospects up to 2 levels deep.
+ */
+async function loadProspectsSubtree(
+  itemId:    string,
+  pathIds:   string[],
+  pathNames: string[],
+  headers:   Record<string,string>,
+  depth:     number
+): Promise<FolderNode> {
+  // Stop at two levels
+  if (depth >= 2) {
+    return {
+      id:        itemId,
+      name:      pathNames[pathNames.length - 1],
+      children:  [],
+      pathIds,
+      pathNames,
+      path:      pathNames.join(" / ")
+    };
+  }
+
+  // Fetch this folder’s children
+  const res = await fetch(
+    `https://graph.microsoft.com/v1.0/drives/${headers.Authorization!.split(" ")[1]}/items/${itemId}/children?$select=id,name,folder`,
+    { headers }
+  );
+  if (!res.ok) {
+    throw new Error(`loadProspectsSubtree: fetch failed ${res.status}`);
+  }
+  const json    = await res.json();
+  const folders = json.value.filter((i: any) => i.folder);
+
+  // Recurse one level deeper
+  const children = await Promise.all(
+    folders.map((f: any) =>
+      loadProspectsSubtree(
+        f.id,
+        [...pathIds, f.id],
+        [...pathNames, f.name],
+        headers,
+        depth + 1
+      )
+    )
+  );
+
+  return {
+    id:        itemId,
+    name:      pathNames[pathNames.length - 1],
+    children,
+    pathIds,
+    pathNames,
+    path:      pathNames.join(" / ")
+  };
 }

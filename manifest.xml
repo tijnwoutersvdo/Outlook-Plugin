@@ -6,7 +6,7 @@
 
   <!-- ── Basis ─────────────────────────────────────────────────── -->
   <Id>9a952895-5132-4ba7-a989-b7dce20ea6f0</Id>
-  <Version>1.0.1.6</Version>  <!-- bumped so OWA picks up this change -->
+  <Version>1.0.1.7</Version>
   <ProviderName>Synergia TW</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
   <DisplayName DefaultValue="Synergia File Saver"/>
@@ -26,9 +26,13 @@
   </AppDomains>
 
   <!-- Host & API-vereisten -->
-  <Hosts><Host Name="Mailbox"/></Hosts>
+  <Hosts>
+    <Host Name="Mailbox"/>
+  </Hosts>
   <Requirements>
-    <Sets><Set Name="Mailbox" MinVersion="1.10"/></Sets>
+    <Sets>
+      <Set Name="Mailbox" MinVersion="1.10"/>
+    </Sets>
   </Requirements>
 
   <!-- Fallback voor oude clients -->
@@ -45,111 +49,113 @@
   <Rule xsi:type="ItemIs" ItemType="Message" FormType="Read"/>
 
   <VersionOverrides xmlns="http://schemas.microsoft.com/office/mailappversionoverrides"
-                    xsi:type="VersionOverridesV1_0">
-    <VersionOverrides xmlns="http://schemas.microsoft.com/office/mailappversionoverrides/1.1"
-                      xsi:type="VersionOverridesV1_1">
+                    xsi:type="VersionOverridesV1_1">
 
-      <!-- 1) API-sets -->
-      <Requirements>
-        <bt:Sets>
-          <bt:Set Name="Mailbox" MinVersion="1.10"/>
-        </bt:Sets>
-      </Requirements>
+    <!-- 1) API-sets -->
+    <Requirements>
+      <bt:Sets>
+        <bt:Set Name="Mailbox" MinVersion="1.10"/>
+      </bt:Sets>
+    </Requirements>
 
-      <!-- 2) Ribbon UI -->
-      <Hosts>
-        <Host xsi:type="MailHost">
-          <DesktopFormFactor>
-            <FunctionFile resid="Taskpane.Url"/>
-            <ExtensionPoint xsi:type="OnMessageOpen">
-              <SourceLocation resid="CommandFunctionFile.Url"/>
-              <FunctionName>onMessageOpenHandler</FunctionName>
-            </ExtensionPoint>
+    <!-- 2) Ribbon UI + event handlers -->
+    <Hosts>
+      <Host xsi:type="MailHost">
+        <DesktopFormFactor>
 
-            <ExtensionPoint xsi:type="MessageReadCommandSurface">
-              <OfficeTab id="TabDefault">
-                <Group id="FileSaverGroup">
-                  <Label resid="GroupLabel"/>
+          <!-- THIS is your single FunctionFile for all handlers -->
+          <FunctionFile resid="CommandFunctionFile.Url"/>
 
-                  <!-- Open File Saver -->
-                  <Control xsi:type="Button" id="OpenPaneBtn">
-                    <Label resid="PaneButton.Label"/>
-                    <Supertip>
-                      <Title       resid="PaneButton.Label"/>
-                      <Description resid="PaneButton.Tooltip"/>
-                    </Supertip>
-                    <Icon>
-                      <bt:Image size="16" resid="Icon16"/>
-                      <bt:Image size="32" resid="Icon32"/>
-                      <bt:Image size="80" resid="Icon80"/>
-                    </Icon>
-                    <Action xsi:type="ShowTaskpane">
-                      <SourceLocation resid="Taskpane.Url"/>
-                    </Action>
-                  </Control>
+          <!-- on-open auto-handler -->
+          <ExtensionPoint xsi:type="OnMessageOpen">
+            <FunctionName>onMessageOpenHandler</FunctionName>
+          </ExtensionPoint>
 
-                  <!-- Extract & Edit Contact -->
-                  <Control xsi:type="Button" id="ExtractContactButton">
-                    <Label resid="ExtractButton.Label"/>
-                    <Supertip>
-                      <Title       resid="ExtractButton.Label"/>
-                      <Description resid="ExtractButton.Tooltip"/>
-                    </Supertip>
-                    <Icon>
-                      <bt:Image size="16" resid="Icon16"/>
-                      <bt:Image size="32" resid="Icon32"/>
-                      <bt:Image size="80" resid="Icon80"/>
-                    </Icon>
-                    <!-- ↓ Changed this back to ShowTaskpane: -->
-                    <Action xsi:type="ShowTaskpane">
-                      <SourceLocation resid="Taskpane.UrlContact"/>
-                    </Action>
-                  </Control>
+          <!-- the ribbon buttons -->
+          <ExtensionPoint xsi:type="MessageReadCommandSurface">
+            <OfficeTab id="TabDefault">
+              <Group id="FileSaverGroup">
+                <Label resid="GroupLabel"/>
 
-                </Group>
-              </OfficeTab>
-            </ExtensionPoint>
-          </DesktopFormFactor>
-        </Host>
-      </Hosts>
+                <!-- Open File Saver -->
+                <Control xsi:type="Button" id="OpenPaneBtn">
+                  <Label resid="PaneButton.Label"/>
+                  <Supertip>
+                    <Title       resid="PaneButton.Label"/>
+                    <Description resid="PaneButton.Tooltip"/>
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Icon16"/>
+                    <bt:Image size="32" resid="Icon32"/>
+                    <bt:Image size="80" resid="Icon80"/>
+                  </Icon>
+                  <Action xsi:type="ShowTaskpane">
+                    <SourceLocation resid="Taskpane.Url"/>
+                  </Action>
+                </Control>
 
-      <!-- 3) Resources -->
-      <Resources>
-        <bt:Images>
-          <bt:Image id="Icon16" DefaultValue="https://tijnwoutersvdo.github.io/Outlook-Plugin/assets/icon-16.png"/>
-          <bt:Image id="Icon32" DefaultValue="https://tijnwoutersvdo.github.io/Outlook-Plugin/assets/icon-32.png"/>
-          <bt:Image id="Icon80" DefaultValue="https://tijnwoutersvdo.github.io/Outlook-Plugin/assets/icon-80.png"/>
-        </bt:Images>
-        <bt:Urls>
-          <bt:Url id="Taskpane.Url"        DefaultValue="https://tijnwoutersvdo.github.io/Outlook-Plugin/taskpane.html"/>
-          <bt:Url id="Taskpane.UrlContact" DefaultValue="https://tijnwoutersvdo.github.io/Outlook-Plugin/taskpane.html?mode=contact"/>
-          <bt:Url id="CommandFunctionFile.Url" DefaultValue="https://tijnwoutersvdo.github.io/Outlook-Plugin/commands.html"/>
-        </bt:Urls>
-        <bt:ShortStrings>
-          <bt:String id="GroupLabel"          DefaultValue="Synergia File Saver"/>
-          <bt:String id="PaneButton.Label"    DefaultValue="Open File Saver"/>
-          <bt:String id="ExtractButton.Label" DefaultValue="Extract Contact"/>
-        </bt:ShortStrings>
-        <bt:LongStrings>
-          <bt:String id="PaneButton.Tooltip"    DefaultValue="Open de add-in voor opslaan in SharePoint."/>
-          <bt:String id="ExtractButton.Tooltip" DefaultValue="Extracteer en bewerk contactgegevens."/>
-        </bt:LongStrings>
-      </Resources>
+                <!-- Extract / Edit Contact -->
+                <Control xsi:type="Button" id="ExtractContactButton">
+                  <Label resid="ExtractButton.Label"/>
+                  <Supertip>
+                    <Title       resid="ExtractButton.Label"/>
+                    <Description resid="ExtractButton.Tooltip"/>
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Icon16"/>
+                    <bt:Image size="32" resid="Icon32"/>
+                    <bt:Image size="80" resid="Icon80"/>
+                  </Icon>
+                  <Action xsi:type="ShowTaskpane">
+                    <SourceLocation resid="Taskpane.UrlContact"/>
+                  </Action>
+                </Control>
 
-      <!-- 4) SSO / Microsoft Graph -->
-      <WebApplicationInfo>
-        <Id>a4d1fb6c-f9df-4caf-a091-a2b93b078ddc</Id>
-        <Resource>api://tijnwoutersvdo.github.io/Outlook-Plugin/a4d1fb6c-f9df-4caf-a091-a2b93b078ddc</Resource>
-        <Scopes>
-          <Scope>openid</Scope>
-          <Scope>profile</Scope>
-          <Scope>User.Read</Scope>
-          <Scope>Sites.ReadWrite.All</Scope>
-          <Scope>Contacts.ReadWrite</Scope>
-          <Scope>access_as_user</Scope>
-        </Scopes>
-      </WebApplicationInfo>
+              </Group>
+            </OfficeTab>
+          </ExtensionPoint>
 
-    </VersionOverrides>
+        </DesktopFormFactor>
+      </Host>
+    </Hosts>
+
+    <!-- 3) Resources -->
+    <Resources>
+      <bt:Images>
+        <bt:Image id="Icon16" DefaultValue="https://tijnwoutersvdo.github.io/Outlook-Plugin/assets/icon-16.png"/>
+        <bt:Image id="Icon32" DefaultValue="https://tijnwoutersvdo.github.io/Outlook-Plugin/assets/icon-32.png"/>
+        <bt:Image id="Icon80" DefaultValue="https://tijnwoutersvdo.github.io/Outlook-Plugin/assets/icon-80.png"/>
+      </bt:Images>
+      <bt:Urls>
+        <bt:Url id="Taskpane.Url"               DefaultValue="https://tijnwoutersvdo.github.io/Outlook-Plugin/taskpane.html"/>
+        <bt:Url id="Taskpane.UrlContact"        DefaultValue="https://tijnwoutersvdo.github.io/Outlook-Plugin/taskpane.html?mode=contact"/>
+        <bt:Url id="CommandFunctionFile.Url"    DefaultValue="https://tijnwoutersvdo.github.io/Outlook-Plugin/commands.html"/>
+      </bt:Urls>
+      <bt:ShortStrings>
+        <bt:String id="GroupLabel"          DefaultValue="Synergia File Saver"/>
+        <bt:String id="PaneButton.Label"    DefaultValue="Open File Saver"/>
+        <bt:String id="ExtractButton.Label" DefaultValue="Extract Contact"/>
+      </bt:ShortStrings>
+      <bt:LongStrings>
+        <bt:String id="PaneButton.Tooltip"    DefaultValue="Open de add-in voor opslaan in SharePoint."/>
+        <bt:String id="ExtractButton.Tooltip" DefaultValue="Extracteer en bewerk contactgegevens."/>
+      </bt:LongStrings>
+    </Resources>
+
+    <!-- 4) SSO / Microsoft Graph -->
+    <WebApplicationInfo>
+      <Id>a4d1fb6c-f9df-4caf-a091-a2b93b078ddc</Id>
+      <Resource>api://tijnwoutersvdo.github.io/Outlook-Plugin/a4d1fb6c-f9df-4caf-a091-a2b93b078ddc</Resource>
+      <Scopes>
+        <Scope>openid</Scope>
+        <Scope>profile</Scope>
+        <Scope>User.Read</Scope>
+        <Scope>Sites.ReadWrite.All</Scope>
+        <Scope>Contacts.ReadWrite</Scope>
+        <Scope>access_as_user</Scope>
+      </Scopes>
+    </WebApplicationInfo>
+
   </VersionOverrides>
 </OfficeApp>
+

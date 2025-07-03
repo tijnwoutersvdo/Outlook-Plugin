@@ -6,7 +6,7 @@
 
   <!-- ── Core information ─────────────────────────────────────────────── -->
   <Id>9a952895-5132-4ba7-a989-b7dce20ea6f0</Id>
-  <Version>1.0.2.0</Version>
+  <Version>1.0.2.2</Version>
   <ProviderName>Synergia TW</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
   <DisplayName DefaultValue="Synergia File Saver"/>
@@ -26,7 +26,9 @@
   </AppDomains>
 
   <!-- Hosts / requirements -->
-  <Hosts><Host Name="Mailbox"/></Hosts>
+  <Hosts>
+    <Host Name="Mailbox"/>
+  </Hosts>
   <Requirements>
     <Sets>
       <Set Name="Mailbox" MinVersion="1.8"/>
@@ -47,7 +49,7 @@
   <Rule xsi:type="ItemIs" ItemType="Message" FormType="Read"/>
 
   <!-- ──────────────────────────────────────────────────────────────────── -->
-  <!--           VersionOverrides for modern Outlook clients               -->
+  <!-- VersionOverrides for modern Outlook clients                           -->
   <!-- ──────────────────────────────────────────────────────────────────── -->
   <VersionOverrides xmlns="http://schemas.microsoft.com/office/mailappversionoverrides"
                     xsi:type="VersionOverridesV1_0">
@@ -56,8 +58,8 @@
 
       <!-- 1 – API requirements for V1.1 -->
       <Requirements>
-        <bt:Sets>
-          <bt:Set Name="Mailbox" MinVersion="1.8"/>
+        <bt:Sets DefaultMinVersion="1.8">
+          <bt:Set Name="Mailbox"/>
         </bt:Sets>
       </Requirements>
 
@@ -109,27 +111,22 @@
                     </Action>
                   </Control>
 
-                  <!-- NEW: one-click “Auto-Suggest” trigger -->
+                  <!-- Suggest-contact task-pane (mode=suggest) -->
                   <Control xsi:type="Button" id="AutoSuggestBtn">
                     <Label resid="AutoSuggest.Label"/>
-
-                    <!-- ❶ Supertip must appear before Icon -->
                     <Supertip>
                       <Title       resid="AutoSuggest.Label"/>
                       <Description resid="AutoSuggest.Tooltip"/>
                     </Supertip>
-
-                    <!-- ❷ Icon now allowed -->
                     <Icon>
                       <bt:Image size="16" resid="Icon16"/>
+                      <bt:Image size="32" resid="Icon32"/>
+                      <bt:Image size="80" resid="Icon80"/>
                     </Icon>
-
-                    <!-- ❸ ExecuteFunction -->
-                    <Action xsi:type="ExecuteFunction">
-                      <FunctionName>onMessageOpenHandler</FunctionName>
+                    <Action xsi:type="ShowTaskpane">
+                      <SourceLocation resid="Taskpane.UrlSuggest"/>
                     </Action>
                   </Control>
-
 
                 </Group>
               </OfficeTab>
@@ -152,6 +149,8 @@
                   DefaultValue="https://tijnwoutersvdo.github.io/Outlook-Plugin/taskpane.html"/>
           <bt:Url id="Taskpane.UrlContact"
                   DefaultValue="https://tijnwoutersvdo.github.io/Outlook-Plugin/taskpane.html?mode=contact"/>
+          <bt:Url id="Taskpane.UrlSuggest"
+                  DefaultValue="https://tijnwoutersvdo.github.io/Outlook-Plugin/taskpane.html?mode=suggest"/>
           <bt:Url id="CommandFunctionFile.Url"
                   DefaultValue="https://tijnwoutersvdo.github.io/Outlook-Plugin/commands.html"/>
         </bt:Urls>
@@ -169,7 +168,7 @@
           <bt:String id="ExtractButton.Tooltip"
                      DefaultValue="Extracteer en bewerk contactgegevens."/>
           <bt:String id="AutoSuggest.Tooltip"
-           DefaultValue="Controleer automatisch of deze afzender al in uw contacten staat."/>
+                     DefaultValue="Controleer automatisch of deze afzender al in uw contacten staat."/>
         </bt:LongStrings>
       </Resources>
 

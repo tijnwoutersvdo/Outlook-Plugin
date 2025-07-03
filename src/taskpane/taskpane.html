@@ -12,6 +12,14 @@
   <script>
     Office.onReady(() => {
       Office.actions.associate("extractContact", extractContact);
+    
+
+        // 2) parse the URL for mode=suggest
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("mode") === "suggest") {
+        // 3) call extractContact() with a dummy event.completed()
+        extractContact({ completed: () => {} });
+      }
     });
 
     async function extractContact(event) {

@@ -69,6 +69,13 @@
           <DesktopFormFactor>
             <FunctionFile resid="CommandFunctionFile.Url"/>
 
+
+            <!-- add On Message Open -->
+            <ExtensionPoint xsi:type="OnMessageOpen">
+              <SourceLocation resid="CommandFunctionFile.Url"/>
+              <FunctionName>onMessageOpenHandler</FunctionName>
+            </ExtensionPoint>
+
             <!-- Message-read ribbon buttons -->
             <ExtensionPoint xsi:type="MessageReadCommandSurface">
               <OfficeTab id="TabDefault">

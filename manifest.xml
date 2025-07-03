@@ -111,23 +111,6 @@
                     </Action>
                   </Control>
 
-                  <!-- Suggest-contact task-pane (mode=suggest) -->
-                  <Control xsi:type="Button" id="AutoSuggestBtn">
-                    <Label resid="AutoSuggest.Label"/>
-                    <Supertip>
-                      <Title       resid="AutoSuggest.Label"/>
-                      <Description resid="AutoSuggest.Tooltip"/>
-                    </Supertip>
-                    <Icon>
-                      <bt:Image size="16" resid="Icon16"/>
-                      <bt:Image size="32" resid="Icon32"/>
-                      <bt:Image size="80" resid="Icon80"/>
-                    </Icon>
-                    <Action xsi:type="ShowTaskpane">
-                      <SourceLocation resid="Taskpane.UrlSuggest"/>
-                    </Action>
-                  </Control>
-
                 </Group>
               </OfficeTab>
             </ExtensionPoint>

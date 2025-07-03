@@ -4,20 +4,20 @@
            xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
            xsi:type="MailApp">
 
-  <!-- ── Basic Info ─────────────────────────────────────────────────── -->
+  <!-- ── Core information ─────────────────────────────────────────────── -->
   <Id>9a952895-5132-4ba7-a989-b7dce20ea6f0</Id>
-  <Version>1.0.1.12</Version>
+  <Version>1.0.2.0</Version>
   <ProviderName>Synergia TW</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
   <DisplayName DefaultValue="Synergia File Saver"/>
-  <Description DefaultValue="Slaat bijlagen op SharePoint en extraheert contactgegevens."/>
+  <Description DefaultValue="Slaat bijlagen op SharePoint en extraheert / beheert contactgegevens."/>
 
-  <!-- Icon & support -->
-  <IconUrl              DefaultValue="https://tijnwoutersvdo.github.io/Outlook-Plugin/assets/icon-64.png"/>
+  <!-- Icons & support -->
+  <IconUrl               DefaultValue="https://tijnwoutersvdo.github.io/Outlook-Plugin/assets/icon-64.png"/>
   <HighResolutionIconUrl DefaultValue="https://tijnwoutersvdo.github.io/Outlook-Plugin/assets/icon-128.png"/>
-  <SupportUrl           DefaultValue="https://www.synergia.nl/help"/>
+  <SupportUrl            DefaultValue="https://www.synergia.nl/help"/>
 
-  <!-- ── Whitelisted Domains ────────────────────────────────────────── -->
+  <!-- Allowed external domains -->
   <AppDomains>
     <AppDomain>https://appsforoffice.microsoft.com</AppDomain>
     <AppDomain>https://login.microsoftonline.com</AppDomain>
@@ -25,18 +25,15 @@
     <AppDomain>https://ajax.aspnetcdn.com</AppDomain>
   </AppDomains>
 
-  <!-- Host & API requirements -->
-  <Hosts>
-    <Host Name="Mailbox"/>
-  </Hosts>
+  <!-- Hosts / requirements -->
+  <Hosts><Host Name="Mailbox"/></Hosts>
   <Requirements>
     <Sets>
-      <!-- REVERTED to 1.8 so both validator and OWA accept it -->
       <Set Name="Mailbox" MinVersion="1.8"/>
     </Sets>
   </Requirements>
 
-  <!-- Fallback for older clients -->
+  <!-- Fallback for very old Outlook builds -->
   <FormSettings>
     <Form xsi:type="ItemRead">
       <DesktopSettings>
@@ -49,42 +46,38 @@
   <Permissions>ReadWriteItem</Permissions>
   <Rule xsi:type="ItemIs" ItemType="Message" FormType="Read"/>
 
-  <!-- ═════════════════ VersionOverrides ══════════════════════════════ -->
+  <!-- ──────────────────────────────────────────────────────────────────── -->
+  <!--           VersionOverrides for modern Outlook clients               -->
+  <!-- ──────────────────────────────────────────────────────────────────── -->
   <VersionOverrides xmlns="http://schemas.microsoft.com/office/mailappversionoverrides"
                     xsi:type="VersionOverridesV1_0">
     <VersionOverrides xmlns="http://schemas.microsoft.com/office/mailappversionoverrides/1.1"
                       xsi:type="VersionOverridesV1_1">
 
-      <!-- 1) API-sets -->
+      <!-- 1 – API requirements for V1.1 -->
       <Requirements>
-        <!-- also set DefaultMinVersion to 1.8 -->
-        <bt:Sets DefaultMinVersion="1.8">
-          <bt:Set Name="Mailbox"/>
+        <bt:Sets>
+          <bt:Set Name="Mailbox" MinVersion="1.8"/>
         </bt:Sets>
       </Requirements>
 
-      <!-- 2) Ribbon UI ONLY (no OnMessageOpen) -->
+      <!-- 2 – UI (Desktop only) -->
       <Hosts>
         <Host xsi:type="MailHost">
           <DesktopFormFactor>
+
+            <!-- Function file that contains onMessageOpenHandler / buttons -->
             <FunctionFile resid="CommandFunctionFile.Url"/>
 
-
-            <!-- add On Message Open -->
-            <ExtensionPoint xsi:type="OnMessageOpen">
-              <SourceLocation resid="CommandFunctionFile.Url"/>
-              <FunctionName>onMessageOpenHandler</FunctionName>
-            </ExtensionPoint>
-
-            <!-- Message-read ribbon buttons -->
+            <!-- Ribbon buttons in read mode -->
             <ExtensionPoint xsi:type="MessageReadCommandSurface">
               <OfficeTab id="TabDefault">
                 <Group id="FileSaverGroup">
                   <Label resid="GroupLabel"/>
 
-                  <!-- Open File Saver -->
+                  <!-- File-saver task-pane -->
                   <Control xsi:type="Button" id="OpenPaneBtn">
-                    <Label    resid="PaneButton.Label"/>
+                    <Label resid="PaneButton.Label"/>
                     <Supertip>
                       <Title       resid="PaneButton.Label"/>
                       <Description resid="PaneButton.Tooltip"/>
@@ -99,9 +92,9 @@
                     </Action>
                   </Control>
 
-                  <!-- Extract & Edit Contact -->
+                  <!-- Contact-editor task-pane -->
                   <Control xsi:type="Button" id="ExtractContactButton">
-                    <Label    resid="ExtractButton.Label"/>
+                    <Label resid="ExtractButton.Label"/>
                     <Supertip>
                       <Title       resid="ExtractButton.Label"/>
                       <Description resid="ExtractButton.Tooltip"/>
@@ -116,6 +109,28 @@
                     </Action>
                   </Control>
 
+                  <!-- NEW: one-click “Auto-Suggest” trigger -->
+                  <Control xsi:type="Button" id="AutoSuggestBtn">
+                    <Label resid="AutoSuggest.Label"/>
+
+                    <!-- ❶ Supertip must appear before Icon -->
+                    <Supertip>
+                      <Title       resid="AutoSuggest.Label"/>
+                      <Description resid="AutoSuggest.Tooltip"/>
+                    </Supertip>
+
+                    <!-- ❷ Icon now allowed -->
+                    <Icon>
+                      <bt:Image size="16" resid="Icon16"/>
+                    </Icon>
+
+                    <!-- ❸ ExecuteFunction -->
+                    <Action xsi:type="ExecuteFunction">
+                      <FunctionName>onMessageOpenHandler</FunctionName>
+                    </Action>
+                  </Control>
+
+
                 </Group>
               </OfficeTab>
             </ExtensionPoint>
@@ -124,30 +139,41 @@
         </Host>
       </Hosts>
 
-      <!-- 3) Resources -->
+      <!-- 3 – Resources -->
       <Resources>
         <bt:Images>
           <bt:Image id="Icon16" DefaultValue="https://tijnwoutersvdo.github.io/Outlook-Plugin/assets/icon-16.png"/>
           <bt:Image id="Icon32" DefaultValue="https://tijnwoutersvdo.github.io/Outlook-Plugin/assets/icon-32.png"/>
           <bt:Image id="Icon80" DefaultValue="https://tijnwoutersvdo.github.io/Outlook-Plugin/assets/icon-80.png"/>
         </bt:Images>
+
         <bt:Urls>
-          <bt:Url id="Taskpane.Url"            DefaultValue="https://tijnwoutersvdo.github.io/Outlook-Plugin/taskpane.html"/>
-          <bt:Url id="Taskpane.UrlContact"     DefaultValue="https://tijnwoutersvdo.github.io/Outlook-Plugin/taskpane.html?mode=contact"/>
-          <bt:Url id="CommandFunctionFile.Url" DefaultValue="https://tijnwoutersvdo.github.io/Outlook-Plugin/commands.html"/>
+          <bt:Url id="Taskpane.Url"
+                  DefaultValue="https://tijnwoutersvdo.github.io/Outlook-Plugin/taskpane.html"/>
+          <bt:Url id="Taskpane.UrlContact"
+                  DefaultValue="https://tijnwoutersvdo.github.io/Outlook-Plugin/taskpane.html?mode=contact"/>
+          <bt:Url id="CommandFunctionFile.Url"
+                  DefaultValue="https://tijnwoutersvdo.github.io/Outlook-Plugin/commands.html"/>
         </bt:Urls>
+
         <bt:ShortStrings>
-          <bt:String id="GroupLabel"          DefaultValue="Synergia File Saver"/>
-          <bt:String id="PaneButton.Label"    DefaultValue="Open File Saver"/>
-          <bt:String id="ExtractButton.Label" DefaultValue="Extract Contact"/>
+          <bt:String id="GroupLabel"           DefaultValue="Synergia File Saver"/>
+          <bt:String id="PaneButton.Label"     DefaultValue="Open File Saver"/>
+          <bt:String id="ExtractButton.Label"  DefaultValue="Extract Contact"/>
+          <bt:String id="AutoSuggest.Label"    DefaultValue="Suggest Contact"/>
         </bt:ShortStrings>
+
         <bt:LongStrings>
-          <bt:String id="PaneButton.Tooltip"    DefaultValue="Open de add-in voor opslaan in SharePoint."/>
-          <bt:String id="ExtractButton.Tooltip" DefaultValue="Extracteer en bewerk contactgegevens."/>
+          <bt:String id="PaneButton.Tooltip"
+                     DefaultValue="Open de add-in voor opslaan in SharePoint."/>
+          <bt:String id="ExtractButton.Tooltip"
+                     DefaultValue="Extracteer en bewerk contactgegevens."/>
+          <bt:String id="AutoSuggest.Tooltip"
+           DefaultValue="Controleer automatisch of deze afzender al in uw contacten staat."/>
         </bt:LongStrings>
       </Resources>
 
-      <!-- 4) SSO / Microsoft Graph -->
+      <!-- 4 – SSO / Graph -->
       <WebApplicationInfo>
         <Id>a4d1fb6c-f9df-4caf-a091-a2b93b078ddc</Id>
         <Resource>api://tijnwoutersvdo.github.io/Outlook-Plugin/a4d1fb6c-f9df-4caf-a091-a2b93b078ddc</Resource>
@@ -155,8 +181,8 @@
           <Scope>openid</Scope>
           <Scope>profile</Scope>
           <Scope>User.Read</Scope>
-          <Scope>Sites.ReadWrite.All</Scope>
           <Scope>Contacts.ReadWrite</Scope>
+          <Scope>Sites.ReadWrite.All</Scope>
           <Scope>access_as_user</Scope>
         </Scopes>
       </WebApplicationInfo>
@@ -164,4 +190,3 @@
     </VersionOverrides>
   </VersionOverrides>
 </OfficeApp>
-

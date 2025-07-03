@@ -7,6 +7,8 @@
 
 /* global Office, OfficeRuntime */
 
+console.log("📦 commands.js loaded");
+
 interface ContactInfo {
   name: string;
   email: string;
